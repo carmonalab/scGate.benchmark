@@ -30,6 +30,7 @@ COPY aux/matrixStats_0.61.0.tar.gz /home/rstudio/matrixStats_0.61.0.tar.gz
 RUN Rscript -e "install.packages('./home/rstudio/matrixStats_0.61.0.tar.gz',repos = NULL, type='source')"
 RUN rm /home/rstudio/matrixStats_0.61.0.tar.gz
 Run Rscript -e "BiocManager::install(c('SingleR','celldex'))" 
+Run Rscript -e "BiocManager::install(c('peakRAM'))" 
 RUN Rscript -e "remotes::install_github('carmonalab/UCell')" \
   && Rscript -e "remotes::install_github('carmonalab/scGate', ref='dev')" 
 #COPY user-settings /home/rstudio/.rstudio/monitored/user-settings/user-settings
