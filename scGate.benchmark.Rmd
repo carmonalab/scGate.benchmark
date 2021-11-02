@@ -167,8 +167,8 @@ plts
 
 ```{r,echo =FALSE, results=F}
 saveRDS(results,file = file.path(figure.path,"benchmark_20102021_scGate.rds")) 
-ggsave(file.path(figure.path,"benchmark_20102021_scGate.png"), plot=plts, width=9, height=5)
-ggsave(file.path(figure.path,"benchmark_20102021_scGate.pdf"), plot=plts, width=9, height=5)
+ggsave(file.path(figure.path,"benchmark_02112021_scGate.png"), plot=plts, width=9, height=5)
+ggsave(file.path(figure.path,"benchmark_02112021_scGate.pdf"), plot=plts, width=9, height=5)
 
 ```
 
