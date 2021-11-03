@@ -16,38 +16,59 @@ knit: (function(input_file, encoding) {
 
 
 ```{r, message=F, warning=F,results=F}
-library(renv)
 renv::activate()
 renv::restore()
-#remotes::install_github("carmonalab/UCell")
-#remotes::install_github("carmonalab/scGate", ref='dev')
 library(ggplot2)
 library(dplyr)
+remotes::install_github("carmonalab/scGate", ref='dev')  #do we need dev version? when we are happy, we move to master, tag, and use a stable version for the benchmark. Same goes for scGate_models - should be a stable version
 library(scGate)
-library(SingleR)
+library(ggsignif)
+library(ggpubr)
+#renv::snapshot()
+```
+
+
+```{r setup, echo=FALSE, message=F, warning=F, results=F}
+library(knitr)
+library(rmdformats)
+library(formatR)
+
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               cache.lazy=FALSE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE,
+               dev='png')
+opts_knit$set(width=75)
+## figure output path 
+figure.path <- "~/Dropbox/CSI/PAPERS/scGate/Figures"
+
 ```
 
 ## Load some testing datasets and models
 
-Load datasets (you will need ~ 14gb of RAM)
+Load datasets
 ```{r}
-testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')  # small sampled version of testing datasets
-#testing.datasets <- readRDS("~/Dropbox/CSI/Datasets/human/human_sets_benchmark.rds") #NB: put these somewhere online
-
-figure.path <- "./plots/"
-dir.create(figure.path)
+#testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
+testing.datasets <- readRDS("~/Dropbox/CSI/Datasets/human/human.sets.expanded.singler.rds")  ### NB: put these models online (switchdrive?)
 
 ```
 
 Load default models from DB
 ```{r}
-models.DB <- scGate::get_scGateDB(force_update = T)
-models <- models.DB$human$generic  ## Pre-compiled list of models for human cell types
+models.DB <- scGate::get_scGateDB(force_update = T)   ### NB: WE MUST SPECIFY A TAG HERE, TO KEEP THE BENCHMARK REPRODUCIBLE - NOT FORCE UPDATE
+models <- models.DB$human$generic
 print(models%>%names)
 
 ```
 
-or alternatively, you can load models from your own folder
+or alternatively, you can load models from your own personalized folder
 ```{r}
 # models_path = '/home/user/path_to_your_own_model_folder'
 # models <- scGate::load_models(models_path) 
@@ -55,67 +76,44 @@ or alternatively, you can load models from your own folder
 
 ### Have a look at some model
 ```{r, fig.height= 6,fig.width= 6, message=F,results=F}
-library(ggparty)
 model.name <- "Bcell"
 model <- models[[model.name]]
 plt.tree <- scGate::plot_tree(model)
 plt.tree
 ```
 
-Load an object containing stardard cell type annotations - to allow comparing different methods
 ```{r}
-ground_truth_categories <- readRDS("./aux/SingleR_goldStandard.rds")  #
+ground_truth_categories <- readRDS("~/Dropbox/CSI/Datasets/human/label_unification.rds")
 ```
 
 
 ## Run models and compute performance
-
-```{r}
-## SingleR
-library(celldex)
-hpca.se <- HumanPrimaryCellAtlasData() 
-param <- BiocParallel::MulticoreParam(workers = 4)
-
-dset.to.run <- names(testing.datasets)
-
-res.SingleR <- list()
-SingleR.output <- list()
-for(dset in dset.to.run){
-    obj <- testing.datasets[[dset]]
-    SingleR.output[[dset]] <- SingleR(test = GetAssayData(obj), ref = hpca.se,labels = hpca.se$label.fine, BPPARAM=param)
-    res.SingleR[[dset]][["SingleR.fine"]] <- SingleR.output[[dset]]$pruned.labels
-}
-```
-
-
-run scGate
 ```{r,collapse =T, results= F, echo = F}
 # List available testing datasets:
 t0 <- Sys.time()
 results <- data.frame()
 models <- models[names(models)!="Tcell.alphabeta"]
-
-
+dset.to.run <- names(testing.datasets)
+dset.to.run <- dset.to.run[!dset.to.run %in% c("bassez.c1")]
 for(dset in dset.to.run){
   message(sprintf('runing %s',dset))
   obj <- testing.datasets[[dset]]
   assay <-  DefaultAssay(obj)
-  
-
   for(model.name in names(models)){
     message(sprintf('runing %s',model.name))
     model <- models[[model.name]]
-    obj <- scGate(data = obj, model = model, ncores = 4, keep.ranks = TRUE, output.col.name = paste0('is.pure.',model.name), assay = assay)
+    obj <- scGate(obj, model = model, ncores = 1, keep.ranks = TRUE,
+                                             output.col.name = paste0('is.pure.',model.name), assay = assay)
     
     res <- scGate::performance.metrics(actual = obj@meta.data[,model.name], pred = obj@meta.data[,paste0("is.pure.",model.name)] == "Pure")
     res <- data.frame(value = res, metric = names(res),model = model.name,dataset = dset,method = "scGate")
     results <- rbind(results,res)
     
-    #merge SingleR results
-    pred.singleR <- (res.SingleR[[dset]])$SingleR.fine%>%grepl(ground_truth_categories$hpca_categories[[model.name]],.)+0
+    pred.singleR <- obj$SingleR.fine%>%grepl(ground_truth_categories$hpca_categories[[model.name]],.)+0
     singleR <- scGate::performance.metrics(actual = obj@meta.data[,model.name], pred = pred.singleR == 1)
     singleR <- data.frame(value = singleR, metric = names(singleR),model = model.name,dataset = dset,method = 'SingleR')
     results <- rbind(results,singleR)
+    
   }
 
 }
@@ -126,6 +124,19 @@ print(t1-t0)
 
 ## performance visualization
 
+```{r,fig.width= 8, fig.height= 16}
+res <- results%>%subset(metric %in% c("PREC","MCC") & dataset %in% c("PBMC_Satija","Jerby", "Yost","zilionis") )
+plts <- ggplot(res, aes(x=model, y=value, fill=method)) + 
+    geom_bar(position="dodge", stat="identity",width = 0.5) +
+    facet_wrap(~ dataset + metric ,ncol = 2)  + theme_bw() +
+   theme(
+     strip.background = element_rect(
+       color="white", fill="white", size=1.5, linetype="dashed"
+       )
+     ) + 
+    theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
+#plts
+```
 
 ```{r,fig.wirth = 8,fig.height=5}
 
@@ -137,7 +148,8 @@ data_summary <- function(x) {
    return(c(y=m,ymin=ymin,ymax=ymax))
 }
 
-res <- results%>%subset(metric %in% c("PREC","MCC") & model!= "Plasma_cell")
+res <- results%>%subset(metric %in% c("PREC","MCC") & dataset %in% c("PBMC_Satija","Jerby", "Yost","zilionis") 
+                        & model!= "Plasma_cell")
 
 
 res.prec <- res%>%subset(metric == "PREC")
@@ -166,9 +178,20 @@ plts
 
 ```{r,echo =FALSE, results=F}
 saveRDS(results,file = file.path(figure.path,"benchmark_20102021_scGate.rds")) 
-ggsave(file.path(figure.path,"benchmark_02112021_scGate.png"), plot=plts, width=9, height=5)
-ggsave(file.path(figure.path,"benchmark_02112021_scGate.pdf"), plot=plts, width=9, height=5)
+ggsave(file.path(figure.path,"benchmark_20102021_scGate.png"), plot=plts, width=9, height=5)
+ggsave(file.path(figure.path,"benchmark_20102021_scGate.pdf"), plot=plts, width=9, height=5)
 
 ```
 
+```{r,results=F, echo = F, eval=F}
+faceted_plots <- ggplot(res, aes(x=model, y=value, fill = method )) + geom_boxplot() +
+  facet_wrap(~ metric ,ncol = 2)  + theme_bw() + 
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) +
+     theme(
+     strip.background = element_rect(
+       color="white", fill="white", size=1.5, linetype="dashed"
+       )
+     ) 
+
+```
 
