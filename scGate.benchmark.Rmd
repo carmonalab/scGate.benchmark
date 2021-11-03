@@ -20,7 +20,8 @@ library(renv)
 renv::activate()
 renv::restore()
 #remotes::install_github("carmonalab/UCell")
-#remotes::install_github("carmonalab/scGate", ref='dev')
+#remotes::install_github("carmonalab/scGate", ref='dev')  #do we need dev version? when we are happy, we move to master, tag, and use a stable version for the benchmark. Same goes for scGate_models - should be a stable version
+
 library(ggplot2)
 library(dplyr)
 library(scGate)
@@ -31,8 +32,11 @@ library(SingleR)
 
 Load datasets (you will need ~ 14gb of RAM)
 ```{r}
-testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')  # small sampled version of testing datasets
 #testing.datasets <- readRDS("~/Dropbox/CSI/Datasets/human/human_sets_benchmark.rds") #NB: put these somewhere online
+testing.datasets <- readRDS("~/Dropbox/CSI/Datasets/human/human.sets.expanded.singler.rds")
+testing.datasets <- testing.datasets[c("Jerby","Li","Yost","zilionis")]
+
+ground_truth_categories <- readRDS("./aux/SingleR_goldStandard.rds")  #Load an object containing stardard cell type annotations - to allow comparing different methods
 
 figure.path <- "./plots/"
 dir.create(figure.path)
@@ -41,30 +45,11 @@ dir.create(figure.path)
 
 Load default models from DB
 ```{r}
-models.DB <- scGate::get_scGateDB(force_update = T)
+models.DB <- scGate::get_scGateDB(force_update = T)  ### NB: force update will make results non-reproducible. We must specify a tag for download, or alternatively include the set of models in the repo
+
 models <- models.DB$human$generic  ## Pre-compiled list of models for human cell types
 print(models%>%names)
 
-```
-
-or alternatively, you can load models from your own folder
-```{r}
-# models_path = '/home/user/path_to_your_own_model_folder'
-# models <- scGate::load_models(models_path) 
-```
-
-### Have a look at some model
-```{r, fig.height= 6,fig.width= 6, message=F,results=F}
-library(ggparty)
-model.name <- "Bcell"
-model <- models[[model.name]]
-plt.tree <- scGate::plot_tree(model)
-plt.tree
-```
-
-Load an object containing stardard cell type annotations - to allow comparing different methods
-```{r}
-ground_truth_categories <- readRDS("./aux/SingleR_goldStandard.rds")  #
 ```
 
 
@@ -88,22 +73,24 @@ for(dset in dset.to.run){
 ```
 
 
-run scGate
+Run scGate
 ```{r,collapse =T, results= F, echo = F}
 # List available testing datasets:
+names(testing.datasets)
+
 t0 <- Sys.time()
 results <- data.frame()
 models <- models[names(models)!="Tcell.alphabeta"]
 
 
 for(dset in dset.to.run){
-  message(sprintf('runing %s',dset))
+  message(sprintf('-Running %s',dset))
   obj <- testing.datasets[[dset]]
   assay <-  DefaultAssay(obj)
   
 
   for(model.name in names(models)){
-    message(sprintf('runing %s',model.name))
+    message(sprintf('---Running %s',model.name))
     model <- models[[model.name]]
     obj <- scGate(data = obj, model = model, ncores = 4, keep.ranks = TRUE, output.col.name = paste0('is.pure.',model.name), assay = assay)
     
