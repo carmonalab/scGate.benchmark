@@ -33,6 +33,8 @@ Run Rscript -e "BiocManager::install(c('SingleR','celldex'))"
 Run Rscript -e "BiocManager::install(c('peakRAM'))" 
 RUN Rscript -e "remotes::install_github('carmonalab/UCell')" \
   && Rscript -e "remotes::install_github('carmonalab/scGate', ref='dev')" 
+Run Rscript -e "BiocManager::install(c('cli','crayon','hdf5r','Matrix','R6','rlang','SeuratObject','stringi','withr'))"
+Run Rscript -e "remotes::install('mojaveazure/seurat-disk')"
 #COPY user-settings /home/rstudio/.rstudio/monitored/user-settings/user-settings
 #COPY .Rprofile /home/rstudio/
 
