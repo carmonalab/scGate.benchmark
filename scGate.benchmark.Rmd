@@ -19,8 +19,8 @@ knit: (function(input_file, encoding) {
 library(renv)
 renv::activate()
 renv::restore()
-#remotes::install_github("carmonalab/UCell")
-#remotes::install_github("carmonalab/scGate", ref='dev')  #do we need dev version? when we are happy, we move to master, tag, and use a stable version for the benchmark. Same goes for scGate_models - should be a stable version
+remotes::install_github("carmonalab/UCell")
+remotes::install_github("carmonalab/scGate", ref='v1.0.0') #stable release
 
 library(ggplot2)
 library(dplyr)
@@ -45,7 +45,7 @@ dir.create(figure.path)
 
 Load default models from DB
 ```{r}
-models.DB <- scGate::get_scGateDB(force_update = T)  ### NB: force update will make results non-reproducible. We must specify a tag for download, or alternatively include the set of models in the repo
+models.DB <- scGate::get_scGateDB(version="v0.4")  ### NB: force update will make results non-reproducible. We must specify a tag for download, or alternatively include the set of models in the repo
 
 models <- models.DB$human$generic  ## Pre-compiled list of models for human cell types
 print(models%>%names)
