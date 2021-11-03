@@ -34,7 +34,7 @@ Load datasets (you will need ~ 14gb of RAM)
 ```{r}
 #testing.datasets <- readRDS("~/Dropbox/CSI/Datasets/human/human_sets_benchmark.rds") #NB: put these somewhere online
 testing.datasets <- readRDS("~/Dropbox/CSI/Datasets/human/human.sets.expanded.singler.rds")
-testing.datasets <- testing.datasets[c("Jerby","Li","Yost","zilionis")]
+testing.datasets <- testing.datasets[c("Jerby","PBMC_Satija","Yost","zilionis")]
 
 ground_truth_categories <- readRDS("./aux/SingleR_goldStandard.rds")  #Load an object containing stardard cell type annotations - to allow comparing different methods
 
@@ -150,12 +150,61 @@ plts  = plt.prec + plt.mcc
 plts
 ```
 
+Try alternative way of showing these plots
+```{r}
+colors <- c("#E69F00", "#56B4E9")
+
+res.prec <- res.prec[!is.na(res.prec$value),]
+res.prec$model <- factor(res.prec$model, levels=c("Bcell","PanBcell","MoMacDC","Myeloid","NK","Tcell","CD4T","CD8T"))   #reorder in more intuitive way
+
+smm.prec <- aggregate(res.prec$value, list(res.prec$method, res.prec$model), FUN=mean)
+colnames(smm.prec) <- c("method","model","value")
+
+plt.prec <- ggplot() +
+  geom_bar(data=smm.prec, aes(x=model, y=value, fill=method), stat="identity", position="dodge", width = 0.75, alpha=0.3) +
+  geom_jitter(data=res.prec, aes(x=model, y=value, color = method, shape = dataset), 
+              position=position_jitterdodge(jitter.width = 0.1), size = 2) +
+  scale_color_manual(values=colors) + scale_fill_manual(values=colors) +
+  ylab("Precision")   + theme_bw() + theme(legend.position = "none") +
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
+  
+
+res.mcc <- res.mcc[!is.na(res.mcc$value),]
+res.mcc$model <- factor(res.mcc$model, levels=c("Bcell","PanBcell","MoMacDC","Myeloid","NK","Tcell","CD4T","CD8T"))   #reorder in more intuitive way
+
+smm.mcc <- aggregate(res.mcc$value, list(res.mcc$method, res.mcc$model), FUN=mean)
+colnames(smm.mcc) <- c("method","model","value")
+
+
+plt.mcc <- ggplot() +
+  geom_bar(data=smm.mcc, aes(x=model, y=value, fill=method), stat="identity", position="dodge", width = 0.75, alpha=0.3) +
+  geom_jitter(data=res.mcc, aes(x=model, y=value, color = method, shape = dataset), 
+              position=position_jitterdodge(jitter.width = 0.1), size = 2) +
+  scale_color_manual(values=colors) + scale_fill_manual(values=colors) +
+  ylab("MCC")   + theme_bw() +
+  theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
+
+a <- plt.prec | plt.mcc
+b <- plt.prec / plt.mcc
+
+a
+
+ggsave(file.path(figure.path,"benchmark_02112021_scGate_lands.pdf"), plot=a, width=9, height=4)
+
+#remove x axis labels
+plt.prec <- plt.prec + theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+b <- plt.prec / plt.mcc
+b
+
+ggsave(file.path(figure.path,"benchmark_02112021_scGate_portr.pdf"), plot=b, width=6, height=4)
+
+```
 
 ```{r,echo =FALSE, results=F}
 saveRDS(results,file = file.path(figure.path,"benchmark_20102021_scGate.rds")) 
-ggsave(file.path(figure.path,"benchmark_02112021_scGate.png"), plot=plts, width=9, height=5)
-ggsave(file.path(figure.path,"benchmark_02112021_scGate.pdf"), plot=plts, width=9, height=5)
-
 ```
 
 
