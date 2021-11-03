@@ -30,11 +30,22 @@ library(parallel)
 
 # Get some testing datasets
 ```{r}
+BiocManager::install(c("cli","crayon","hdf5r","Matrix","R6","rlang","SeuratObject","stringi","withr"))
+remotes::install_github("mojaveazure/seurat-disk")
 #testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
-whole.obj <- readRDS("~/Datasets/human.sets.expanded.singler.rds")
-whole.obj <- whole.obj[["bassez.c1"]]
-gc()
-whole.obj <- subset(whole.obj, cells = sample(Cells(whole.obj),50000))
+ddir <- "~/Datasets/"
+dir.create(ddir, showWarnings = FALSE)
+options(timeout=1000)
+dataUrl <- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
+
+download.file(dataUrl, sprintf("%s/pbmc_multimodal.h5seurat", ddir))
+pbmc.azimuth.full <- SeuratDisk::LoadH5Seurat(sprintf("%s/pbmc_multimodal.h5seurat", ddir))
+
+
+#whole.obj <- readRDS("~/Datasets/human.sets.expanded.singler.rds")
+#whole.obj <- whole.obj[["bassez.c1"]]
+#gc()
+#whole.obj <- subset(whole.obj, cells = sample(Cells(whole.obj),50000))
 gc(reset=T)
 ```
 
@@ -49,7 +60,7 @@ model$levels%>%unique()%>%length()
 ```{r}
 timing <- list()
 memory <- list()
-ncells <- c(500,1000,5000,10000,25000,50000)
+ncells <- c(500,1000,5000,10000,25000,50000,100000)
 
 ```
 
@@ -64,37 +75,36 @@ param <- MulticoreParam(workers = 4)    # configure parallelization
 # subset testing dataset (with different number of cells)  and run both models
 ```{r}
 for(downsample in ncells){
-  message(sprintf("runing methods with %s cells",downsample))
-  
-  # subset dataset
-  subseted.obj <- subset(whole.obj, cells=sample(Cells(whole.obj),downsample))
-  
-  
-  #scGate
-  gc1 <- gc(reset = TRUE)
-  t0 <- Sys.time()
-  out <- tryCatch({
-          test <- scGate(subseted.obj, model = model, ncores = 4)
-      },
-    error=function(cond) {
-      message(cond)
-      return(NA)
-  })
-  t1 <- Sys.time() 
-  tt <- t1-t0
-  deltaT <- as.numeric(tt, units = "mins")
-  gc2 <- gc()
-  if (is.na(out)) { #Out of memory
-    memPeak <- NA
-    time <- NA
-  } else {
-    memPeak <- (sum(gc2[,6]) - sum(gc1[,6]))/1000
-    time <- deltaT
+  for(i in c("a","b","c")){
+    # subset dataset
+    subseted.obj <- subset(pbmc.azimuth.full, cells=sample(Cells(pbmc.azimuth.full),downsample))
+    gc()
+    message(sprintf("runing methods with %s cells; iter %s",downsample,i))
+    #scGate
+    gc1 <- gc(reset = TRUE)
+    t0 <- Sys.time()
+    out <- tryCatch({
+            test <- scGate(subseted.obj, model = model, ncores = 4)
+        },
+      error=function(cond) {
+        message(cond)
+        return(NA)
+    })
+    t1 <- Sys.time() 
+    tt <- t1-t0
+    deltaT <- as.numeric(tt, units = "mins")
+    gc2 <- gc()
+    if (is.na(out)) { #Out of memory
+      memPeak <- NA
+      time <- NA
+    } else {
+      memPeak <- (sum(gc2[,6]) - sum(gc1[,6]))/1000
+      time <- deltaT
+    }
+    #reserve result
+    timing[[paste0("Ncell_",downsample)]][["scGate"]][[i]] <- time
+    memory[[paste0("Ncell_",downsample)]][["scGate"]][[i]] <- memPeak 
   }
-  #reserve result
-  timing[[paste0("Ncell_",downsample)]][["scGate"]] <- time
-  memory[[paste0("Ncell_",downsample)]][["scGate"]] <- memPeak 
-  
 }
 gc(reset = T)
 ```
@@ -103,38 +113,37 @@ gc(reset = T)
 ```{r}
 #### SIngleR
 for(downsample in ncells){
-  message(sprintf("runing methods with %s cells",downsample))
+  for(i in c("a","b","c")){
+    # subset dataset
+    subseted.obj <- subset(pbmc.azimuth.full, cells=sample(Cells(pbmc.azimuth.full),downsample))
+    gc()
+    message(sprintf("runing methods with %s cells; iter %s",downsample,i))
+    gc1 <- gc(reset = TRUE)
+    t0 <- Sys.time()
+    out <- tryCatch({
+        test <- SingleR(test = GetAssayData(subseted.obj), ref = hpca.se, labels = hpca.se$label.fine, BPPARAM=param)
+        },
+      error=function(cond) {
+        message(cond)
+        return(NA)
+    })
+    t1 <- Sys.time() 
+    tt <- t1-t0
+    deltaT <- as.numeric(tt, units = "mins")
+    gc2 <- gc()
+    if (is.na(out)) { #Out of memory
+      memPeak <- NA
+      time <- NA
+    } else {
+      memPeak <- (sum(gc2[,6]) - sum(gc1[,6]))/1000
+      time <- deltaT
+    }
+    
   
-  # subset dataset
-  subseted.obj <- subset(whole.obj, cells=sample(Cells(whole.obj),downsample))
-  
-
-  gc1 <- gc(reset = TRUE)
-  t0 <- Sys.time()
-  out <- tryCatch({
-      test <- SingleR(test = GetAssayData(subseted.obj), ref = hpca.se, labels = hpca.se$label.fine, BPPARAM=param)
-      },
-    error=function(cond) {
-      message(cond)
-      return(NA)
-  })
-  t1 <- Sys.time() 
-  tt <- t1-t0
-  deltaT <- as.numeric(tt, units = "mins")
-  gc2 <- gc()
-  if (is.na(out)) { #Out of memory
-    memPeak <- NA
-    time <- NA
-  } else {
-    memPeak <- (sum(gc2[,6]) - sum(gc1[,6]))/1000
-    time <- deltaT
+    #reserve result
+    timing[[paste0("Ncell_",downsample)]][["SingleR"]][[i]] <-  deltaT 
+    memory[[paste0("Ncell_",downsample)]][["SingleR"]][[i]] <- memPeak 
   }
-  
-
-  #reserve result
-  timing[[paste0("Ncell_",downsample)]][["SingleR"]] <-  deltaT 
-  memory[[paste0("Ncell_",downsample)]][["SingleR"]] <- memPeak 
-
 }
 ```
 
@@ -149,7 +158,8 @@ res.time <- data.frame()
 
 for(mtd in c("SingleR","scGate")){
   for(nc in ncells){
-    a <- results$timing[[paste0("Ncell_",nc)]][[mtd]]
+    xx <- unlist(results$timing[[paste0("Ncell_",nc)]][[mtd]])
+    a <- mean(xx,na.rm =T)
     if(is.null(a)){a <- NA}
     res.time <- rbind(res.time,data.frame("Ncell"= nc,method = mtd,time = a))
   }
@@ -159,7 +169,8 @@ res.memory <- data.frame()
 
 for(mtd in c("SingleR","scGate")){
   for(nc in ncells){
-    a <- results$memory[[paste0("Ncell_",nc)]][[mtd]]
+    xx <- unlist(results$memory[[paste0("Ncell_",nc)]][[mtd]])
+    a <- mean(xx,na.rm =T)
     if(is.null(a)){a <- NA}
     res.memory <- rbind(res.memory,data.frame("Ncell"= nc,method = mtd,memory = a))
   }
