@@ -30,26 +30,32 @@ library(parallel)
 
 # Get some testing datasets
 ```{r}
-BiocManager::install(c("cli","crayon","hdf5r","Matrix","R6","rlang","SeuratObject","stringi","withr"))
-remotes::install_github("mojaveazure/seurat-disk")
+#BiocManager::install(c("cli","crayon","hdf5r","Matrix","R6","rlang","SeuratObject","stringi","withr"))
+#remotes::install_github("mojaveazure/seurat-disk")
 #testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
 ddir <- "~/Datasets/"
 dir.create(ddir, showWarnings = FALSE)
 options(timeout=1000)
 dataUrl <- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
 
-download.file(dataUrl, sprintf("%s/pbmc_multimodal.h5seurat", ddir))
-pbmc.azimuth.full <- SeuratDisk::LoadH5Seurat(sprintf("%s/pbmc_multimodal.h5seurat", ddir))
+dset.h5 <- sprintf("%s/pbmc_multimodal.h5seurat", ddir)
+if (!file.exists(dset.h5)) {
+   download.file(dataUrl, dset.file)
+}
+pbmc.azimuth.full <- SeuratDisk::LoadH5Seurat(dset.h5)
 
+#Reduce object size
+pbmc.azimuth.full <- DietSeurat(pbmc.azimuth.full, counts = T, scale.data = FALSE, assays = 'SCT',dimreducs = NULL)
 
-#whole.obj <- readRDS("~/Datasets/human.sets.expanded.singler.rds")
-#whole.obj <- whole.obj[["bassez.c1"]]
-#gc()
-#whole.obj <- subset(whole.obj, cells = sample(Cells(whole.obj),50000))
+pbmc.azimuth.full@assays$RNA <- pbmc.azimuth.full@assays$SCT
+DefaultAssay(pbmc.azimuth.full) <- "RNA"
+class(pbmc.azimuth.full@assays$RNA) <- 'Assay'
+
+pbmc.azimuth.full@assays$SCT <- NULL
 gc(reset=T)
 ```
 
-## Load Models from tables and impute them (if were necessary)
+## Load scGate models
 ```{r}
 models.DB <- scGate::get_scGateDB()
 model <- models.DB$human$generic$CD8T  # model with 4 levels 
@@ -60,14 +66,14 @@ model$levels%>%unique()%>%length()
 ```{r}
 timing <- list()
 memory <- list()
-ncells <- c(500,1000,5000,10000,25000,50000,100000)
-
+#ncells <- c(500,1000,5000,10000,25000,50000,100000)
+ncells <- c(500,1000,5000,10000,25000)
 ```
 
 ### Load training data for SIngleR
 ```{r}
 hpca.se <- HumanPrimaryCellAtlasData()  ## reference
-param <- MulticoreParam(workers = 4)    # configure parallelization
+#param <- MulticoreParam(workers = 4)    # configure parallelization
 ```
 
 
@@ -84,7 +90,7 @@ for(downsample in ncells){
     gc1 <- gc(reset = TRUE)
     t0 <- Sys.time()
     out <- tryCatch({
-            test <- scGate(subseted.obj, model = model, ncores = 4)
+            scGate(subseted.obj, model = model, ncores = 1)
         },
       error=function(cond) {
         message(cond)
@@ -98,7 +104,7 @@ for(downsample in ncells){
       memPeak <- NA
       time <- NA
     } else {
-      memPeak <- (sum(gc2[,6]) - sum(gc1[,6]))/1000
+      memPeak <- (sum(gc2[,7]) - sum(gc1[,7]))/1000
       time <- deltaT
     }
     #reserve result
@@ -121,7 +127,8 @@ for(downsample in ncells){
     gc1 <- gc(reset = TRUE)
     t0 <- Sys.time()
     out <- tryCatch({
-        test <- SingleR(test = GetAssayData(subseted.obj), ref = hpca.se, labels = hpca.se$label.fine, BPPARAM=param)
+ #      SingleR(test = GetAssayData(subseted.obj), ref = hpca.se, labels = hpca.se$label.fine, BPPARAM=param)
+        SingleR(test = GetAssayData(subseted.obj), ref = hpca.se, labels = hpca.se$label.fine)
         },
       error=function(cond) {
         message(cond)
@@ -135,7 +142,7 @@ for(downsample in ncells){
       memPeak <- NA
       time <- NA
     } else {
-      memPeak <- (sum(gc2[,6]) - sum(gc1[,6]))/1000
+      memPeak <- (sum(gc2[,7]) - sum(gc1[,7]))/1000
       time <- deltaT
     }
     
@@ -150,7 +157,9 @@ for(downsample in ncells){
 
 ```{r}
 results <- list(timing = timing, memory = memory)
-saveRDS(results,"/home/rstudio/Figures/time_memory_SingleR_scGate_4c_16gb_IntelI5.rds")
+saveRDS(results,"time_memory_SingleR_scGate_1core_MACOSX.rds")
+#saveRDS(results,"/home/rstudio/Figures/time_memory_SingleR_scGate_1core_MACOSX.rds")
+
 ```
 
 ```{r}
@@ -190,8 +199,9 @@ plt.mem <- ggplot(res.memory,aes(x=Ncell,y = memory,
 
 plt <- plt.time + plt.mem
 plt
-ggsave(filename = "~/Figures/time_memory_benchmark_docker_4c_16gb_IntelI5.pdf",plot = plt,width = 10,height = 5)
-ggsave(filename = "~/Figures/time_memory_benchmark_docker_4c_16gb_IntelI5.png",plot = plt,width = 10,height = 5)
+#ggsave(filename = "~/Figures/time_memory_benchmark_docker_4c_16gb_IntelI5.pdf",plot = plt,width = 10,height = 5)
+#ggsave(filename = "~/Figures/time_memory_benchmark_docker_4c_16gb_IntelI5.png",plot = plt,width = 10,height = 5)
+ggsave(filename = "time_memory_benchmark_docker_1c.png",plot = plt,width = 10,height = 5)
 
 ```
 
