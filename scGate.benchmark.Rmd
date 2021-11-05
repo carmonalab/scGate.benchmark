@@ -32,9 +32,12 @@ library(SingleR)
 
 Load datasets (you will need ~ 14gb of RAM)
 ```{r}
-#testing.datasets <- readRDS("~/Dropbox/CSI/Datasets/human/human_sets_benchmark.rds") #NB: put these somewhere online
-testing.datasets <- readRDS("~/Dropbox/CSI/Datasets/human/human.sets.expanded.singler.rds")
-testing.datasets <- testing.datasets[c("Jerby","PBMC_Satija","Yost","zilionis")]
+rds.file = "./aux/human_sets_benchmark.rds"
+if (!file.exists(rds.file)) {
+  options(timeout=2000)
+  download.file("https://figshare.com/ndownloader/files/31346815?private_link=7d4d9376a3bbdb17bc00", rds.file)
+}
+testing.datasets <- readRDS(rds.file) 
 
 ground_truth_categories <- readRDS("./aux/SingleR_goldStandard.rds")  #Load an object containing stardard cell type annotations - to allow comparing different methods
 
