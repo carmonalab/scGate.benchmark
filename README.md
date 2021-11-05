@@ -35,4 +35,4 @@ sudo docker run --rm -p 8787:8787 -v /PATH/TO/scGate.benchmark:/home/rstudio/scG
 
 Then, you can open in a browser localhost:8787 and loging with rstudio user and your_desired_passw
 
-After that, you can open the ***runing.time.comparison.on.docker.Rmd*** notebook and reproduce figure 1g of our paper.
+After that, you can open the **runing_time_comparison_on_docker.Rmd** notebook and reproduce figure 1g of our paper.
