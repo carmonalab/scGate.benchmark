@@ -33,7 +33,7 @@ library(parallel)
 #BiocManager::install(c("cli","crayon","hdf5r","Matrix","R6","rlang","SeuratObject","stringi","withr"))
 #remotes::install_github("mojaveazure/seurat-disk")
 #testing.datasets <- scGate:::get_testing_data(version = 'hsa.latest')
-ddir <- "~/Datasets/"
+ddir <- "~/scGate.benchmark/aux/"
 dir.create(ddir, showWarnings = FALSE)
 options(timeout=1000)
 dataUrl <- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
@@ -65,15 +65,15 @@ model$levels%>%unique()%>%length()
 # Set parameters for time comparison
 ```{r}
 timing <- list()
-memory <- list()
 #ncells <- c(500,1000,5000,10000,25000,50000,100000)
 ncells <- c(500,1000,5000,10000,25000)
+NC <- 4
 ```
 
 ### Load training data for SIngleR
 ```{r}
 hpca.se <- HumanPrimaryCellAtlasData()  ## reference
-#param <- MulticoreParam(workers = 4)    # configure parallelization
+param <- MulticoreParam(workers = NC)    # configure parallelization
 ```
 
 
@@ -81,35 +81,19 @@ hpca.se <- HumanPrimaryCellAtlasData()  ## reference
 # subset testing dataset (with different number of cells)  and run both models
 ```{r}
 for(downsample in ncells){
-  for(i in c("a","b","c")){
+  for(i in c("a","b","c")){  # each point will be ran 3 times. 
     # subset dataset
     subseted.obj <- subset(pbmc.azimuth.full, cells=sample(Cells(pbmc.azimuth.full),downsample))
     gc()
     message(sprintf("runing methods with %s cells; iter %s",downsample,i))
     #scGate
-    gc1 <- gc(reset = TRUE)
     t0 <- Sys.time()
-    out <- tryCatch({
-            scGate(subseted.obj, model = model, ncores = 1)
-        },
-      error=function(cond) {
-        message(cond)
-        return(NA)
-    })
+    scGate(subseted.obj, model = model, ncores = NC)
     t1 <- Sys.time() 
     tt <- t1-t0
     deltaT <- as.numeric(tt, units = "mins")
-    gc2 <- gc()
-    if (is.na(out)) { #Out of memory
-      memPeak <- NA
-      time <- NA
-    } else {
-      memPeak <- (sum(gc2[,7]) - sum(gc1[,7]))/1000
-      time <- deltaT
-    }
     #reserve result
-    timing[[paste0("Ncell_",downsample)]][["scGate"]][[i]] <- time
-    memory[[paste0("Ncell_",downsample)]][["scGate"]][[i]] <- memPeak 
+    timing[[paste0("Ncell_",downsample)]][["scGate"]][[i]] <- deltaT
   }
 }
 gc(reset = T)
@@ -124,41 +108,22 @@ for(downsample in ncells){
     subseted.obj <- subset(pbmc.azimuth.full, cells=sample(Cells(pbmc.azimuth.full),downsample))
     gc()
     message(sprintf("runing methods with %s cells; iter %s",downsample,i))
-    gc1 <- gc(reset = TRUE)
     t0 <- Sys.time()
-    out <- tryCatch({
- #      SingleR(test = GetAssayData(subseted.obj), ref = hpca.se, labels = hpca.se$label.fine, BPPARAM=param)
-        SingleR(test = GetAssayData(subseted.obj), ref = hpca.se, labels = hpca.se$label.fine)
-        },
-      error=function(cond) {
-        message(cond)
-        return(NA)
-    })
+    SingleR(test = GetAssayData(subseted.obj), ref = hpca.se, labels = hpca.se$label.fine, BPPARAM=param)
     t1 <- Sys.time() 
     tt <- t1-t0
     deltaT <- as.numeric(tt, units = "mins")
-    gc2 <- gc()
-    if (is.na(out)) { #Out of memory
-      memPeak <- NA
-      time <- NA
-    } else {
-      memPeak <- (sum(gc2[,7]) - sum(gc1[,7]))/1000
-      time <- deltaT
-    }
-    
-  
     #reserve result
     timing[[paste0("Ncell_",downsample)]][["SingleR"]][[i]] <-  deltaT 
-    memory[[paste0("Ncell_",downsample)]][["SingleR"]][[i]] <- memPeak 
   }
 }
 ```
 
 
 ```{r}
-results <- list(timing = timing, memory = memory)
-saveRDS(results,"time_memory_SingleR_scGate_1core_MACOSX.rds")
-#saveRDS(results,"/home/rstudio/Figures/time_memory_SingleR_scGate_1core_MACOSX.rds")
+results <- list(timing = timing)
+saveRDS(results,"~/aux/runtime_SingleR_scGate_4core.rds")
+
 
 ```
 
@@ -174,19 +139,6 @@ for(mtd in c("SingleR","scGate")){
   }
 }
 
-res.memory <- data.frame()
-
-for(mtd in c("SingleR","scGate")){
-  for(nc in ncells){
-    xx <- unlist(results$memory[[paste0("Ncell_",nc)]][[mtd]])
-    a <- mean(xx,na.rm =T)
-    if(is.null(a)){a <- NA}
-    res.memory <- rbind(res.memory,data.frame("Ncell"= nc,method = mtd,memory = a))
-  }
-}
-
-
-
 ```
 
 
@@ -194,15 +146,13 @@ for(mtd in c("SingleR","scGate")){
 plt.time <- ggplot(res.time,aes(x=Ncell,y = time,
                group =method, colour = method)) + geom_line() + ylab("Time [min]")  + xlab("# cells") + geom_point() + theme_bw() + theme(axis.text.x = element_text(angle = 60,hjust=1), legend.position = "none") 
 
-plt.mem <- ggplot(res.memory,aes(x=Ncell,y = memory,
-               group =method, colour = method)) + geom_line() + ylab("Memory [Gb]")  + xlab("# cells") + geom_point() + theme_bw() + theme(axis.text.x = element_text(angle = 60,hjust=1))
 
-plt <- plt.time + plt.mem
-plt
-#ggsave(filename = "~/Figures/time_memory_benchmark_docker_4c_16gb_IntelI5.pdf",plot = plt,width = 10,height = 5)
-#ggsave(filename = "~/Figures/time_memory_benchmark_docker_4c_16gb_IntelI5.png",plot = plt,width = 10,height = 5)
-ggsave(filename = "time_memory_benchmark_docker_1c.png",plot = plt,width = 10,height = 5)
-
+plt <- plt.time 
+save = FALSE
+if(save){
+  ggsave(filename = "~/aux/runtime_benchmark_onDocker_4c.png",plot = plt, width = 7,height = 7)
+  ggsave(filename = "~/aux/runtime_benchmark_onDocker_4c.pdf",plot = plt, width = 7,height = 7)
+}
 ```
 
 
