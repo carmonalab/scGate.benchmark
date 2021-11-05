@@ -2,7 +2,14 @@
 This repository is intended to reproduce the resuts of the benchmark test in [paper](url_here). 
 
 # Performance comparison against SingleR
-write it down
+In order to reproduce figures 1e and 1f or our [mansucript]() you need to run scGate.benchmark.Rmd notebook. The main requirement is you install renv library before runing.
+
+```
+install.packages("renv")
+```
+
+Then, open the notebook and run it. 
+
 
 ## Runing time performance
 In order to do reproducible results we do it in a docker container.
