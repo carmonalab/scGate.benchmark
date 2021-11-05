@@ -24,6 +24,7 @@ wget https://cran.rstudio.com/src/contrib/matrixStats_0.61.0.tar.gz -O ./aux/mat
 
 Build container
 ```
+source=1.0
 sudo docker build -t scgate_benchmark --build-arg version=$source . 2>&1 | tee docker.build.log
 ```
 
