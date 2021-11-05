@@ -36,22 +36,34 @@ library(parallel)
 ddir <- "~/scGate.benchmark/aux/"
 dir.create(ddir, showWarnings = FALSE)
 options(timeout=1000)
-dataUrl <- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
-
-dset.h5 <- sprintf("%s/pbmc_multimodal.h5seurat", ddir)
-if (!file.exists(dset.h5)) {
-   download.file(dataUrl, dset.file)
+if(TRUE){
+  #subset 50K Hao et.al. 2021
+  rds.file <- "~/aux/Hao_subset50K_sct.rds"
+  if (!file.exists(rds.file)) {
+    dataUrl.rds <- "https://figshare.com/ndownloader/files/31347367?private_link=31c57715c30ce9f57552"
+    download.file(dataUrl, rds.file)
+  }
+  pbmc.azimuth.subset <- readRDS(rds.file)
+  
+}else{
+  # Hao_subset50K_sct.rds was generated in this way:
+  dataUrl <- "https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat"
+  dset.h5 <- sprintf("%s/pbmc_multimodal.h5seurat", ddir)
+  if (!file.exists(dset.h5)) {
+     download.file(dataUrl, dset.file)
+  }
+  pbmc.azimuth.full <- SeuratDisk::LoadH5Seurat(dset.h5)
+  pbmc.azimuth.full <- DietSeurat(pbmc.azimuth.full, counts = T, scale.data = FALSE, assays = 'SCT',dimreducs = NULL)
+  pbmc.azimuth.subset <- subset(pbmc.azimuth.full, cells=sample(Cells(pbmc.azimuth.full),50000))
+  saveRDS(pbmc.azimuth.subset,file = "~/aux/Hao_subset50K_sct.rds") # This file is which is now in figshare
 }
-pbmc.azimuth.full <- SeuratDisk::LoadH5Seurat(dset.h5)
 
 #Reduce object size
-pbmc.azimuth.full <- DietSeurat(pbmc.azimuth.full, counts = T, scale.data = FALSE, assays = 'SCT',dimreducs = NULL)
+pbmc.azimuth.subset@assays$RNA <- pbmc.azimuth.full@assays$SCT
+DefaultAssay(pbmc.azimuth.subset) <- "RNA"
+class(pbmc.azimuth.subset@assays$RNA) <- 'Assay'
+pbmc.azimuth.subset@assays$SCT <- NULL
 
-pbmc.azimuth.full@assays$RNA <- pbmc.azimuth.full@assays$SCT
-DefaultAssay(pbmc.azimuth.full) <- "RNA"
-class(pbmc.azimuth.full@assays$RNA) <- 'Assay'
-
-pbmc.azimuth.full@assays$SCT <- NULL
 gc(reset=T)
 ```
 
@@ -65,8 +77,8 @@ model$levels%>%unique()%>%length()
 # Set parameters for time comparison
 ```{r}
 timing <- list()
-#ncells <- c(500,1000,5000,10000,25000,50000,100000)
-ncells <- c(500,1000,5000,10000,25000)
+ncells <- c(500,1000,5000,10000,25000,50000)
+#ncells <- c(500,1000,5000,10000,25000)
 NC <- 4
 ```
 
@@ -83,7 +95,7 @@ param <- MulticoreParam(workers = NC)    # configure parallelization
 for(downsample in ncells){
   for(i in c("a","b","c")){  # each point will be ran 3 times. 
     # subset dataset
-    subseted.obj <- subset(pbmc.azimuth.full, cells=sample(Cells(pbmc.azimuth.full),downsample))
+    subseted.obj <- subset(pbmc.azimuth.subset, cells=sample(Cells(pbmc.azimuth.subset),downsample))
     gc()
     message(sprintf("runing methods with %s cells; iter %s",downsample,i))
     #scGate
@@ -105,7 +117,7 @@ gc(reset = T)
 for(downsample in ncells){
   for(i in c("a","b","c")){
     # subset dataset
-    subseted.obj <- subset(pbmc.azimuth.full, cells=sample(Cells(pbmc.azimuth.full),downsample))
+    subseted.obj <- subset(pbmc.azimuth.subset, cells=sample(Cells(pbmc.azimuth.subset),downsample))
     gc()
     message(sprintf("runing methods with %s cells; iter %s",downsample,i))
     t0 <- Sys.time()
