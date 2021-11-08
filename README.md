@@ -1,23 +1,20 @@
 # scGate.benchmark
-This repository is intended to reproduce the resuts of the benchmark test in [paper](url_here). 
+This repository allows reproducing the benchmark test in scGate's paper.
 
-# Performance comparison against SingleR
-In order to reproduce figures 1e and 1f or our [mansucript]() you need to run scGate.benchmark.Rmd notebook. The main requirement is you install renv library before runing.
+# Predictive performance of scGate vs SingleR
+[scGate.benchmark.Rmd](https://github.com/carmonalab/scGate.benchmark/blob/master/scGate.benchmark.Rmd) reproduces Figure 1 E
 
-```
-install.packages("renv")
-```
+# Runing time performance
 
-Then, open the notebook and run it. 
+[runing_time_comparison_on_docker.Rmd](https://github.com/carmonalab/scGate.benchmark/blob/master/runing_time_comparison_on_docker.Rmd) reproduces Figure 1 F (running time scGate vs SingleR)
 
+For reproduciblity we run this test in this a docker container, created with this [Dockerfile](https://github.com/carmonalab/scGate.benchmark/blob/master/Dockerfile). 
 
-## Runing time performance
-In order to do reproducible results we do it in a docker container.
+## Detailed instructions:
 
-### First, a few instructions to locally create the container
-* You can install dropbox in your machine following the [install instructions](https://docs.docker.com/engine/install/)
+You can install Docker in your machine following the [install instructions](https://docs.docker.com/engine/install/)
 
-cloning scGate.benchmark repo
+Clone scGate.benchmark repo
 ```
 git clone https://github.com/carmonalab/scGate.benchmark.git
 cd scGate.benchmark
@@ -42,4 +39,4 @@ sudo docker run --rm -p 8787:8787 -v /PATH/TO/scGate.benchmark:/home/rstudio/scG
 
 Then, you can open in a browser localhost:8787 and loging with rstudio user and your_desired_passw
 
-After that, you can open the **runing_time_comparison_on_docker.Rmd** notebook and reproduce figure 1g of our paper.
+After that, you can open the **runing_time_comparison_on_docker.Rmd** notebook and reproduce figure 1 F of scGate's paper.
