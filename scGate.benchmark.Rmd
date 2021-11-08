@@ -84,8 +84,7 @@ names(testing.datasets)
 
 t0 <- Sys.time()
 results <- data.frame()
-models <- models[names(models)!="Tcell.alphabeta"]
-
+models <- models[names(models)!="Tcell.alphabeta"] #skip this model since there is no equivalent class in hpca for SingleR
 
 for(dset in dset.to.run){
   message(sprintf('-Running %s',dset))
