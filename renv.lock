@@ -308,9 +308,9 @@
       "RemoteHost": "api.github.com",
       "RemoteRepo": "seurat-disk",
       "RemoteUsername": "mojaveazure",
-      "RemoteRef": "HEAD",
+      "RemoteRef": "163f1aade5bac38ed1e9e9c912283a7e74781610",
       "RemoteSha": "163f1aade5bac38ed1e9e9c912283a7e74781610",
-      "Hash": "85629b6fec50b2632b8b3402ff86cc58"
+      "Hash": "2d646c3e5b9d602f4e52d07fdbc2dd30"
     },
     "SeuratObject": {
       "Package": "SeuratObject",
@@ -333,15 +333,15 @@
     },
     "UCell": {
       "Package": "UCell",
-      "Version": "1.1.1",
+      "Version": "1.1.0",
       "Source": "GitHub",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
       "RemoteRepo": "UCell",
       "RemoteUsername": "carmonalab",
-      "RemoteRef": "HEAD",
-      "RemoteSha": "968c78049a9258207c53a7a9cfae18561a1e046c",
-      "Hash": "196c1d52781f1a6ef4ef68bf352b8ca9"
+      "RemoteRef": "v1.1",
+      "RemoteSha": "9f70daa5ce82ffb2fca4fb1599d939bf03eba9fe",
+      "Hash": "ac941b9b9b92848d27ae4f7b3060542c"
     },
     "XVector": {
       "Package": "XVector",
