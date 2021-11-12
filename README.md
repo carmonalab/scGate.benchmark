@@ -8,7 +8,7 @@ This repository allows reproducing the benchmark test in scGate's paper.
 
 [runing_time_comparison_on_docker.Rmd](https://github.com/carmonalab/scGate.benchmark/blob/master/runing_time_comparison_on_docker.Rmd) reproduces Figure 1 F (running time scGate vs SingleR)
 
-For reproduciblity we run this test in this a docker container, created with this [Dockerfile](https://github.com/carmonalab/scGate.benchmark/blob/master/Dockerfile). 
+For reproduciblity we run this test on a Docker container, created with this [Dockerfile](https://github.com/carmonalab/scGate.benchmark/blob/master/Dockerfile). 
 
 ## Detailed instructions:
 
