@@ -22,11 +22,13 @@ renv::restore()
 #remotes::install_github("carmonalab/UCell", ref="v1.1")
 #remotes::install_github("mojaveazure/seurat-disk",ref="163f1aade5bac38ed1e9e9c912283a7e74781610")
 #remotes::install_github("carmonalab/scGate", ref='v1.0.0') #stable release
+#install.packages("SCINA")
 
 library(ggplot2)
 library(dplyr)
 library(scGate)
 library(SingleR)
+library(SCINA)
 ```
 
 ## Load some testing datasets and models
@@ -113,6 +115,40 @@ t1 <- Sys.time()
 print(t1-t0)
 ```
 
+# Build SCINA model signatures 
+```{r}
+scina.signatures <- list()
+scina.signatures$Bcell <- c("MS4A1","BANK1","PAX5","CD19","CD79A") 
+scina.signatures$Plasma <- c("MS4A1","BANK1","PAX5","CD19","CD79A") 
+
+scina.signatures$MoMacDC<- c("SPI1","CD40","CD68","CD14","FCGR1A","LYZ","CSF1R","MSR1","MAFB","CD300E")
+scina.signatures$Myeloid<- c("SPI1","CD40","CD68","CD14","FCGR1A","LYZ","CSF1R","MSR1","MAFB","CD300E","CSF3R","FCGR3B")
+
+scina.signatures$Tcell <- c("CD3D","CD3E","CD3G","CD2")
+
+scina.signatures$CD4T <- c("CD3D","CD3E","CD3G","CD2","CD4","CD40LG","FOXP3")
+scina.signatures$CD8T <- c("CD3D","CD3E","CD3G","CD2","CD8A","CD8B")
+scina.signatures$NK<- c("LCK","KLRD1","NKG7","NCR1","FCGR3A")
+```
+
+# Run SCINA
+```{r}
+
+for(dset in dset.to.run){
+  message(sprintf('-Running %s',dset))
+  obj <- testing.datasets[[dset]]
+  assay <-  DefaultAssay(obj)
+  expr.mat <- GetAssayData(object = obj,assay = assay)
+  res.scina =SCINA(expr.mat,signatures = scina.signatures, max_iter=100,convergence_n=10,convergence_rate=0.99,sensitivity_cutoff=0.9,rm_overlap=F)
+
+  for(model.name in names(models)){
+    pred.SCINA <- (res.scina$cell_labels==model.name) + 0
+    res.SCINA <- scGate::performance.metrics(actual = obj@meta.data[,model.name], pred = pred.SCINA == 1)
+    res.SCINA <- data.frame(value = res.SCINA, metric = names(res.SCINA),model = model.name,dataset = dset,method = 'SCINA')
+    results <- rbind(results,res.SCINA)
+  }  
+}  
+```
 
 ## performance visualization
 
