@@ -68,7 +68,7 @@ hpca.se <- HumanPrimaryCellAtlasData()
 param <- BiocParallel::MulticoreParam(workers = 4)
 
 dset.to.run <- names(testing.datasets)
-
+t0<- Sys.time()
 res.SingleR <- list()
 SingleR.output <- list()
 for(dset in dset.to.run){
@@ -76,6 +76,8 @@ for(dset in dset.to.run){
     SingleR.output[[dset]] <- SingleR(test = GetAssayData(obj), ref = hpca.se,labels = hpca.se$label.fine, BPPARAM=param)
     res.SingleR[[dset]][["SingleR.fine"]] <- SingleR.output[[dset]]$pruned.labels
 }
+t1<- Sys.time()
+dt <- t1-t0
 ```
 
 
@@ -113,6 +115,7 @@ for(dset in dset.to.run){
 }
 t1 <- Sys.time()
 print(t1-t0)
+dt2 <- t1-t0
 ```
 
 # Build SCINA model signatures 
@@ -154,44 +157,49 @@ for(dset in dset.to.run){
 
 
 ```{r,fig.wirth = 8,fig.height=5}
-
 data_summary <- function(x) {
-   m <- mean(x)
-   se <- function(x) sqrt(var(x)/length(x))
-   ymin <- m-se(x)
-   ymax <- m+se(x)
-   return(c(y=m,ymin=ymin,ymax=ymax))
+     m <- mean(x)
+     se <- function(x) sqrt(var(x)/length(x))
+     ymin <- m-se(x)
+     ymax <- m+se(x)
+     return(c(y=m,ymin=ymin,ymax=ymax))
 }
-
+  
 res <- results%>%subset(metric %in% c("PREC","MCC") & model!= "Plasma_cell")
-
-
+  
+  
 res.prec <- res%>%subset(metric == "PREC")
 res.mcc <- res%>%subset(metric == "MCC")
+```
 
-plt.prec <- plts <- ggplot(res.prec, aes(x=model, y=value, color = method )) + geom_jitter(position=position_jitterdodge(jitter.width = 0.2), size = 0.4) +
-  stat_summary(fun.data=data_summary,position=position_dodge(0.8), shape = 4, size = 0.25) + 
-  ylab("Precision")   + theme_bw() +
-  theme(legend.position = "none") +
-  theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
+
+```{r,fig.wirth = 8,fig.height=5}
+ #old plot
+if(F){
+  plt.prec <- plts <- ggplot(res.prec, aes(x=model, y=value, color = method )) + geom_jitter(position=position_jitterdodge(jitter.width = 0.2), size = 0.4) +
+    stat_summary(fun.data=data_summary,position=position_dodge(0.8), shape = 4, size = 0.25) + 
+    ylab("Precision")   + theme_bw() +
+    theme(legend.position = "none") +
+    theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
+    
   
-
-
-plt.mcc  <- ggplot(res.mcc, aes(x=model, y=value, color=method )) + geom_jitter(position=position_jitterdodge(jitter.width = 0.2), size = 0.4) +
-#  scale_color_manual(values=c("#E69F00", "#56B4E9")) + 
-  stat_summary(fun.data=data_summary,  
-               position=position_dodge(0.8), shape = 4, size = 0.25) + 
-  ylab("MCC")  + theme_bw() +
-  theme(legend.position = c(0.85, 0.15), legend.title = element_blank()) + 
-  theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5))
-
-plts  = plt.prec + plt.mcc
-plts
+  
+  plt.mcc  <- ggplot(res.mcc, aes(x=model, y=value, color=method )) + geom_jitter(position=position_jitterdodge(jitter.width = 0.2), size = 0.4) +
+  #  scale_color_manual(values=c("#E69F00", "#56B4E9")) + 
+    stat_summary(fun.data=data_summary,  
+                 position=position_dodge(0.8), shape = 4, size = 0.25) + 
+    ylab("MCC")  + theme_bw() +
+    theme(legend.position = c(0.85, 0.15), legend.title = element_blank()) + 
+    theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5))
+  
+  plts  = plt.prec + plt.mcc
+  plts
+}
 ```
 
 Try alternative way of showing these plots
 ```{r}
-colors <- c("#E69F00", "#56B4E9")
+colors <- c("#E69F00", "#56B4E9","#56E9BA")
 
 res.prec <- res.prec[!is.na(res.prec$value),]
 res.prec$model <- factor(res.prec$model, levels=c("Bcell","PanBcell","MoMacDC","Myeloid","NK","Tcell","CD4T","CD8T"))   #reorder in more intuitive way
@@ -228,7 +236,7 @@ b <- plt.prec / plt.mcc
 
 a
 
-ggsave(file.path(figure.path,"benchmark_02112021_scGate_lands.pdf"), plot=a, width=9, height=4)
+ggsave(file.path(figure.path,"benchmark_15012022_scGate_lands.pdf"), plot=a, width=9, height=4)
 
 #remove x axis labels
 plt.prec <- plt.prec + theme(axis.title.x=element_blank(),
@@ -238,7 +246,7 @@ plt.prec <- plt.prec + theme(axis.title.x=element_blank(),
 b <- plt.prec / plt.mcc
 b
 
-ggsave(file.path(figure.path,"benchmark_02112021_scGate_portr.pdf"), plot=b, width=6, height=4)
+ggsave(file.path(figure.path,"benchmark_15012022_scGate_portr.pdf"), plot=b, width=6, height=4)
 
 ```
 
