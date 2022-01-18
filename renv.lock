@@ -286,6 +286,13 @@
       "Source": "Bioconductor",
       "Hash": "64feb769afc97c0207f55ad32857cd7e"
     },
+    "SCINA": {
+      "Package": "SCINA",
+      "Version": "1.2.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "f306e0a50e90563b1feed1c4323c5db2"
+    },
     "ScaledMatrix": {
       "Package": "ScaledMatrix",
       "Version": "1.2.0",
@@ -303,8 +310,8 @@
       "Package": "SeuratDisk",
       "Version": "0.0.0.9019",
       "Source": "GitHub",
-      "Remotes": "satijalab/seurat-data",
       "RemoteType": "github",
+      "Remotes": "satijalab/seurat-data",
       "RemoteHost": "api.github.com",
       "RemoteRepo": "seurat-disk",
       "RemoteUsername": "mojaveazure",
@@ -1052,13 +1059,6 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "5e3c5dc0b071b21fa128676560dbe94d"
-    },
-    "remotes": {
-      "Package": "remotes",
-      "Version": "2.4.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "feaca31e417db79fd1832e25b51a7717"
     },
     "renv": {
       "Package": "renv",
