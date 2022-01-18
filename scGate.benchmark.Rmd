@@ -1,5 +1,5 @@
 ---
-title: "Intuitive Immune Isolation of cell types with scGate. Basic examples"
+title: "Small benchmark of cell type isolation with scGate and other methods"
 author: "M. Andreatta, A. Berenstein and S. Carmona"
 date: "29/09/2021"
 output:
@@ -11,7 +11,7 @@ output:
 knit: (function(input_file, encoding) {
   out_dir <- 'docs';
   rmarkdown::render(input_file, encoding=encoding,
- output_file=file.path(dirname(input_file), out_dir, 'scGate.basic.usage.html'))})
+ output_file=file.path(dirname(input_file), out_dir, 'scGate.bench.html'))})
 ---
 
 
@@ -68,7 +68,6 @@ hpca.se <- HumanPrimaryCellAtlasData()
 param <- BiocParallel::MulticoreParam(workers = 4)
 
 dset.to.run <- names(testing.datasets)
-t0<- Sys.time()
 res.SingleR <- list()
 SingleR.output <- list()
 for(dset in dset.to.run){
@@ -76,8 +75,6 @@ for(dset in dset.to.run){
     SingleR.output[[dset]] <- SingleR(test = GetAssayData(obj), ref = hpca.se,labels = hpca.se$label.fine, BPPARAM=param)
     res.SingleR[[dset]][["SingleR.fine"]] <- SingleR.output[[dset]]$pruned.labels
 }
-t1<- Sys.time()
-dt <- t1-t0
 ```
 
 
@@ -86,7 +83,6 @@ Run scGate
 # List available testing datasets:
 names(testing.datasets)
 
-t0 <- Sys.time()
 results <- data.frame()
 models <- models[names(models)!="Tcell.alphabeta"] #skip this model since there is no equivalent class in hpca for SingleR
 
@@ -113,16 +109,14 @@ for(dset in dset.to.run){
   }
 
 }
-t1 <- Sys.time()
-print(t1-t0)
-dt2 <- t1-t0
 ```
 
 # Build SCINA model signatures 
 ```{r}
 scina.signatures <- list()
 scina.signatures$Bcell <- c("MS4A1","BANK1","PAX5","CD19","CD79A") 
-scina.signatures$Plasma <- c("MS4A1","BANK1","PAX5","CD19","CD79A") 
+#scina.signatures$Plasma <- c("IGKC","IGHG3","IGHG1","IGHA1","CD79A") 
+scina.signatures$PanBcell <- c("CD79A")
 
 scina.signatures$MoMacDC<- c("SPI1","CD40","CD68","CD14","FCGR1A","LYZ","CSF1R","MSR1","MAFB","CD300E")
 scina.signatures$Myeloid<- c("SPI1","CD40","CD68","CD14","FCGR1A","LYZ","CSF1R","MSR1","MAFB","CD300E","CSF3R","FCGR3B")
@@ -136,13 +130,12 @@ scina.signatures$NK<- c("LCK","KLRD1","NKG7","NCR1","FCGR3A")
 
 # Run SCINA
 ```{r}
-
 for(dset in dset.to.run){
   message(sprintf('-Running %s',dset))
   obj <- testing.datasets[[dset]]
   assay <-  DefaultAssay(obj)
   expr.mat <- GetAssayData(object = obj,assay = assay)
-  res.scina =SCINA(expr.mat,signatures = scina.signatures, max_iter=100,convergence_n=10,convergence_rate=0.99,sensitivity_cutoff=0.9,rm_overlap=F)
+  res.scina <- SCINA(expr.mat,signatures = scina.signatures, max_iter=100,convergence_n=10,convergence_rate=0.99,sensitivity_cutoff=0.9,rm_overlap=F)
 
   for(model.name in names(models)){
     pred.SCINA <- (res.scina$cell_labels==model.name) + 0
@@ -150,13 +143,11 @@ for(dset in dset.to.run){
     res.SCINA <- data.frame(value = res.SCINA, metric = names(res.SCINA),model = model.name,dataset = dset,method = 'SCINA')
     results <- rbind(results,res.SCINA)
   }  
-}  
+}
 ```
 
-## performance visualization
-
-
-```{r,fig.wirth = 8,fig.height=5}
+Summarize performance
+```{r,fig.width = 8,fig.height=5}
 data_summary <- function(x) {
      m <- mean(x)
      se <- function(x) sqrt(var(x)/length(x))
@@ -173,31 +164,7 @@ res.mcc <- res%>%subset(metric == "MCC")
 ```
 
 
-```{r,fig.wirth = 8,fig.height=5}
- #old plot
-if(F){
-  plt.prec <- plts <- ggplot(res.prec, aes(x=model, y=value, color = method )) + geom_jitter(position=position_jitterdodge(jitter.width = 0.2), size = 0.4) +
-    stat_summary(fun.data=data_summary,position=position_dodge(0.8), shape = 4, size = 0.25) + 
-    ylab("Precision")   + theme_bw() +
-    theme(legend.position = "none") +
-    theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
-    
-  
-  
-  plt.mcc  <- ggplot(res.mcc, aes(x=model, y=value, color=method )) + geom_jitter(position=position_jitterdodge(jitter.width = 0.2), size = 0.4) +
-  #  scale_color_manual(values=c("#E69F00", "#56B4E9")) + 
-    stat_summary(fun.data=data_summary,  
-                 position=position_dodge(0.8), shape = 4, size = 0.25) + 
-    ylab("MCC")  + theme_bw() +
-    theme(legend.position = c(0.85, 0.15), legend.title = element_blank()) + 
-    theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5))
-  
-  plts  = plt.prec + plt.mcc
-  plts
-}
-```
-
-Try alternative way of showing these plots
+And visualize performance metrics in one plot
 ```{r}
 colors <- c("#E69F00", "#56B4E9","#56E9BA")
 
@@ -251,7 +218,7 @@ ggsave(file.path(figure.path,"benchmark_15012022_scGate_portr.pdf"), plot=b, wid
 ```
 
 ```{r,echo =FALSE, results=F}
-saveRDS(results,file = file.path(figure.path,"benchmark_20102021_scGate.rds")) 
+saveRDS(results,file = file.path(figure.path,"benchmark_15012022_scGate.rds")) 
 ```
 
 
