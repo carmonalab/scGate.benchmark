@@ -4,9 +4,9 @@ This repository allows reproducing the benchmark test in scGate's paper.
 # Predictive performance of scGate vs SingleR
 [scGate.benchmark.Rmd](https://github.com/carmonalab/scGate.benchmark/blob/master/scGate.benchmark.Rmd) reproduces Figure 1 E
 
-# Runing time performance
+# Running time performance
 
-[runing_time_comparison_on_docker.Rmd](https://github.com/carmonalab/scGate.benchmark/blob/master/runing_time_comparison_on_docker.Rmd) reproduces Figure 1 F (running time scGate vs SingleR)
+[running_time_comparison_on_docker.Rmd](https://github.com/carmonalab/scGate.benchmark/blob/master/runing_time_comparison_on_docker.Rmd) reproduces Figure 1 F (running time scGate vs SingleR)
 
 For reproduciblity we run this test on a Docker container, created with this [Dockerfile](https://github.com/carmonalab/scGate.benchmark/blob/master/Dockerfile). 
 
