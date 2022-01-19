@@ -133,7 +133,6 @@ for(dset in dset.to.run){
   }
 
 }
-#saveRDS(results,"./aux/results.rds")
 ```
 
 # Build SCINA model signatures 
@@ -237,12 +236,6 @@ for(dset in dset.to.run){
 ```
 
 
-```{r}
-saveRDS(results,"aux/benchmark.results.rds")
-```
-
-
-
 
 
 Summarize performance
@@ -265,7 +258,7 @@ res.mcc <- res%>%subset(metric == "MCC")
 
 And visualize performance metrics in one plot
 ```{r}
-colors <- c("#E69F00", "#56B4E9","#56E9BA")
+colors <- c("#E69F00", "#56B4E9","#56E9BA","#E06D55","#E0D855")
 
 res.prec <- res.prec[!is.na(res.prec$value),]
 res.prec$model <- factor(res.prec$model, levels=c("Bcell","PanBcell","MoMacDC","Myeloid","NK","Tcell","CD4T","CD8T"))   #reorder in more intuitive way
@@ -302,7 +295,7 @@ b <- plt.prec / plt.mcc
 
 a
 
-ggsave(file.path(figure.path,"benchmark_15012022_scGate_lands.pdf"), plot=a, width=9, height=4)
+ggsave(file.path(figure.path,"benchmark_19012022_scGate_lands.pdf"), plot=a, width=9, height=4)
 
 #remove x axis labels
 plt.prec <- plt.prec + theme(axis.title.x=element_blank(),
@@ -312,12 +305,12 @@ plt.prec <- plt.prec + theme(axis.title.x=element_blank(),
 b <- plt.prec / plt.mcc
 b
 
-ggsave(file.path(figure.path,"benchmark_15012022_scGate_portr.pdf"), plot=b, width=6, height=4)
+ggsave(file.path(figure.path,"benchmark_19012022_scGate_portr.pdf"), plot=b, width=6, height=4)
 
 ```
 
 ```{r,echo =FALSE, results=F}
-saveRDS(results,file = file.path(figure.path,"benchmark_15012022_scGate.rds")) 
+saveRDS(results,file = file.path(figure.path,"benchmark_19012022_scGate.rds"))  
 ```
 
 
