@@ -24,12 +24,24 @@ renv::restore()
 #remotes::install_github("carmonalab/scGate", ref='v1.0.0') #stable release
 #install.packages("SCINA")
 
+
+#install.packages("BiocManager")
+#BiocManager::install("devtools")
+#library(devtools)
+#BiocManager::install(c('DelayedArray', 'DelayedMatrixStats',"monocle","org.Hs.eg.db","org.Mm.eg.db"))
+#devtools::install_github("cole-trapnell-lab/garnett")
+
+
 library(ggplot2)
 library(dplyr)
 library(scGate)
 library(SingleR)
 library(SCINA)
+library(garnett)
+library(org.Hs.eg.db)
+
 ```
+
 
 ## Load some testing datasets and models
 
@@ -42,12 +54,24 @@ if (!file.exists(rds.file)) {
 }
 testing.datasets <- readRDS(rds.file) 
 
-ground_truth_categories <- readRDS("./aux/SingleR_goldStandard.rds")  #Load an object containing stardard cell type annotations - to allow comparing different methods
+#ground_truth_categories <- readRDS("./aux/SingleR_goldStandard.rds")  #Load an object containing stardard cell type annotations - to allow comparing different methods
+ground_truth_categories <- readRDS("./aux/goldStandards.rds")  #Load an object containing stardard cell type annotations - to allow comparing different methods
 
 figure.path <- "./plots/"
 dir.create(figure.path)
 
 ```
+
+# Load pbmc datasets from Abdelaal 2019
+(see processing steps in scGate_dev repo)
+```{r}
+runing_abdelaal = F
+if(runing_abdelaal){
+  testing.datasets <- readRDS(paste0("aux/pbmcs_abdelaal2019.rds"))
+  platforms = c("10Xv2","10Xv3","CEL-Seq","Drop-Seq","inDrop","Seq-Well","Smart-Seq2")
+}
+```
+
 
 Load default models from DB
 ```{r}
@@ -81,7 +105,7 @@ for(dset in dset.to.run){
 Run scGate
 ```{r,collapse =T, results= F, echo = F}
 # List available testing datasets:
-names(testing.datasets)
+#names(testing.datasets)
 
 results <- data.frame()
 models <- models[names(models)!="Tcell.alphabeta"] #skip this model since there is no equivalent class in hpca for SingleR
@@ -109,6 +133,7 @@ for(dset in dset.to.run){
   }
 
 }
+#saveRDS(results,"./aux/results.rds")
 ```
 
 # Build SCINA model signatures 
@@ -165,6 +190,60 @@ for(dset in dset.to.run){
   }  
 }
 ```
+
+
+
+## Run Garnett pre-trained model (pbmc)
+Download and load pre-trained classifier
+```{r}
+download.file("https://cole-trapnell-lab.github.io/garnett/classifiers/hsPBMC_20191017.RDS",destfile = "./aux/garnett_hsPBMC_classifier.RDS")
+download.file("https://cole-trapnell-lab.github.io/garnett/marker_files/hsPBMC_markers.txt",destfile = "./aux/garnett_hsPBMC_markerList.txt")
+pbmc_classifier <- readRDS("./aux/garnett_hsPBMC_classifier.RDS")  # load pre-trained classifier
+
+```
+
+
+
+# Garnet classification
+```{r}
+for(dset in dset.to.run){
+  message(sprintf('-Running %s',dset))
+  obj <- testing.datasets[[dset]]
+  
+  #adapt format
+  cds.obj <- as.CellDataSet(obj)
+  cds.obj <- estimateSizeFactors(cds.obj)
+
+  #make classif
+  cds.obj <- classify_cells(cds.obj, pbmc_classifier,
+                             db = org.Hs.eg.db,
+                             cluster_extend = TRUE,
+                             cds_gene_id_type = "SYMBOL")
+  
+
+  for(model.name in names(models)){
+    pred.garnett.cellType <- (pData(cds.obj)$cell_type) %>%grepl(ground_truth_categories$garnett.PBMC.clasif.pre.trained[[model.name]],.)+0
+    res.garnett <- scGate::performance.metrics(actual = obj@meta.data[,model.name], pred = pred.garnett.cellType == 1)
+    res.garnett <- data.frame(value = res.garnett, metric = names(res.garnett),model = model.name,dataset = dset,method = 'Garnett')
+    results <- rbind(results,res.garnett)
+
+    pred.garnett.ext.cellType <- (pData(cds.obj)$cluster_ext_type) %>%grepl(ground_truth_categories$garnett.PBMC.clasif.pre.trained[[model.name]],.)+0
+    res.garnett.ext <- scGate::performance.metrics(actual = obj@meta.data[,model.name], pred = pred.garnett.ext.cellType == 1)
+    res.garnett.ext <- data.frame(value = res.garnett.ext, metric = names(res.garnett.ext),model = model.name,dataset = dset,method = 'Garnett.clust.ext')
+    results <- rbind(results,res.garnett.ext)
+
+  }  
+}
+```
+
+
+```{r}
+saveRDS(results,"aux/benchmark.results.rds")
+```
+
+
+
+
 
 Summarize performance
 ```{r,fig.width = 8,fig.height=5}
