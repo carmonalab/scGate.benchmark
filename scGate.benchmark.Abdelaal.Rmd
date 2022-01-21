@@ -52,6 +52,8 @@ platforms = c("10Xv2","10Xv3","CEL-Seq","Drop-Seq","inDrop","Seq-Well","Smart-Se
 keep_pbmc1 <- grep("^pbmc1",names(testing.datasets))
 testing.datasets <- testing.datasets[keep_pbmc1]
 gc()
+
+ground_truth_categories <- readRDS("./aux/goldStandards.rds")  #Load an object containing stardard cell type annotations - to allow comparing different methods
 ```
 
 
