@@ -43,22 +43,15 @@ library(org.Hs.eg.db)
 ```
 
 
-## Load some testing datasets and models
-
-Load datasets (you will need ~ 14gb of RAM)
+# Load pbmc datasets from Abdelaal 2019
+(see processing steps in scGate_dev repo)
 ```{r}
-rds.file = "./aux/human_sets_benchmark.rds"
-if (!file.exists(rds.file)) {
-  options(timeout=2000)
-  download.file("https://figshare.com/ndownloader/files/31346815?private_link=7d4d9376a3bbdb17bc00", rds.file)
-}
-testing.datasets <- readRDS(rds.file) 
+testing.datasets <- readRDS(paste0("aux/pbmcs_abdelaal2019.rds"))
+platforms = c("10Xv2","10Xv3","CEL-Seq","Drop-Seq","inDrop","Seq-Well","Smart-Seq2")
 
-ground_truth_categories <- readRDS("./aux/SingleR_goldStandard.rds")  #Load an object containing stardard cell type annotations - to allow comparing different methods
-
-figure.path <- "./plots/"
-dir.create(figure.path, showWarnings = F)
-
+keep_pbmc1 <- grep("^pbmc1",names(testing.datasets))
+testing.datasets <- testing.datasets[keep_pbmc1]
+gc()
 ```
 
 
@@ -69,17 +62,7 @@ models.DB <- scGate::get_scGateDB(version="v0.4")  ### NB: force update will mak
 models <- models.DB$human$generic  ## Pre-compiled list of models for human cell types
 print(models%>%names)
 
-#Edit CD4 and CD8 models to includes MAIT as contaminants
-models$CD4T <- scGate::gating_model(model = models$CD4T, level=4, negative=T, name="MAIT",
-                              signature=c("KLRB1","SLC4A10","NCR3","CD4-","CD8A-"))
-plot_tree(models$CD4T)
-
-models$CD8T <- scGate::gating_model(model = models$CD8T, level=4, negative=T, name="MAIT",
-                              signature=c("KLRB1","SLC4A10","NCR3","CD4-","CD8A-"))
-plot_tree(models$CD8T)
-
 ```
-
 
 ## Run models and compute performance
 
@@ -240,6 +223,10 @@ for(dset in dset.to.run){
 
 
 ```{r}
+saveRDS(results,"./aux/results.abdelaal.rds")
+```
+
+```{r}
 results.to.plot <- results%>%subset(method!="Garnett.clust.ext" & metric!= "REC")
 gb = results.to.plot%>%group_by(method,metric)
 global.perf <- summarise(gb,value = mean(value,na.rm =T))%>%arrange(desc(value))
@@ -336,12 +323,9 @@ plt.prec <- plt.prec + theme(axis.title.x=element_blank(),
 b <- plt.prec / plt.mcc
 b
 
-ggsave(file.path(figure.path,"benchmark_20012022_scGate_portr.pdf"), plot=b, width=6, height=4)
+#ggsave(file.path(figure.path,"benchmark_20012022_scGate_portr.pdf"), plot=b, width=6, height=4)
+ggsave(file.path(figure.path,"benchmark_abdelaal_technology_scGate_portr.pdf"), plot=b, width=6, height=4)
 
-```
-
-```{r}
-saveRDS(results,file = file.path(figure.path,"benchmark_19012022_scGate.rds"))  
 ```
 
 
