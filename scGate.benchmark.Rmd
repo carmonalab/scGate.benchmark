@@ -114,7 +114,11 @@ Run scGate
 
 results <- data.frame()
 models <- models[names(models)!="Tcell.alphabeta"] #skip this model since there is no equivalent class in hpca for SingleR
+#results.bkp <- results
+```
 
+
+```{r,collapse =T, results= F, echo = F}
 for(dset in dset.to.run){
   message(sprintf('-Running %s',dset))
   obj <- testing.datasets[[dset]]
@@ -122,6 +126,7 @@ for(dset in dset.to.run){
   
 
   for(model.name in names(models)){
+    if(sum(results$method == "scGate" & results$dataset%in% dset & results$model%in% model.name) == 3) next
     message(sprintf('---Running %s',model.name))
     model <- models[[model.name]]
     obj <- scGate(data = obj, model = model, ncores = 4, keep.ranks = TRUE, output.col.name = paste0('is.pure.',model.name), assay = assay)
@@ -240,6 +245,11 @@ for(dset in dset.to.run){
 }
 ```
 
+
+```{r}
+saveRDS(results,"./aux/results.abdelaal.rds")
+```
+
 ```{r}
 results.to.plot <- results%>%subset(method!="Garnett.clust.ext" & metric!= "REC")
 gb = results.to.plot%>%group_by(method,metric)
@@ -302,6 +312,7 @@ plt.prec <- ggplot() +
               position=position_jitterdodge(jitter.width = 0.1), size = 2) +
   scale_color_manual(values=colors) + scale_fill_manual(values=colors) +
   ylab("Precision")   + theme_bw() + theme(legend.position = "none") +
+#  scale_shape_manual(values=1:length(unique(res.prec$dataset))) +
   theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
   
 
@@ -318,6 +329,7 @@ plt.mcc <- ggplot() +
               position=position_jitterdodge(jitter.width = 0.1), size = 2) +
   scale_color_manual(values=colors) + scale_fill_manual(values=colors) +
   ylab("MCC")   + theme_bw() +
+#  scale_shape_manual(values=1:length(unique(res.prec$dataset))) +
   theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
 
 a <- plt.prec | plt.mcc
@@ -335,7 +347,8 @@ plt.prec <- plt.prec + theme(axis.title.x=element_blank(),
 b <- plt.prec / plt.mcc
 b
 
-ggsave(file.path(figure.path,"benchmark_20012022_scGate_portr.pdf"), plot=b, width=6, height=4)
+#ggsave(file.path(figure.path,"benchmark_20012022_scGate_portr.pdf"), plot=b, width=6, height=4)
+ggsave(file.path(figure.path,"benchmark_abdelaal_technology_scGate_portr.pdf"), plot=b, width=6, height=4)
 
 ```
 
