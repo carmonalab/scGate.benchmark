@@ -46,7 +46,8 @@ library(org.Hs.eg.db)
 # Load pbmc datasets from Abdelaal 2019
 (see processing steps in scGate_dev repo)
 ```{r}
-testing.datasets <- readRDS(paste0("aux/pbmcs_abdelaal2019.rds"))
+dset <- "/Users/mass/Dropbox/CSI/Datasets/benchmarking/Abdelaal2019/Inter-dataset/PbmcBench/seurat/pbmcs_abdelaal2019.rds"
+testing.datasets <- readRDS(dset)
 platforms = c("10Xv2","10Xv3","CEL-Seq","Drop-Seq","inDrop","Seq-Well","Smart-Seq2")
 
 keep_pbmc1 <- grep("^pbmc1",names(testing.datasets))
@@ -56,6 +57,19 @@ gc()
 ground_truth_categories <- readRDS("./aux/goldStandards.rds")  #Load an object containing stardard cell type annotations - to allow comparing different methods
 ```
 
+
+```{r fig.height=6}
+library(patchwork)
+pll <- list()
+for (i in seq_along(testing.datasets)) {
+   name <- names(testing.datasets)[i]
+   set <- testing.datasets[[i]]
+   
+   pll[[name]] <- DimPlot(set, group.by = "Label") + ggtitle(name)
+   
+}
+wrap_plots(pll)
+```
 
 Load default models from DB
 ```{r}
