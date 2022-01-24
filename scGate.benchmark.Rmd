@@ -279,7 +279,6 @@ global.perf <- summarise(gb,value = mean(value,na.rm =T))%>%arrange(desc(value))
 
 ordered.methods <- (summarise(gb,value = mean(value,na.rm =T))%>%subset(metric=="MCC")%>%arrange(desc(value)))$method
 #ordered.methods <- c("scGate","SingleR","Garnett","SCINA")
-#ordered.methods <- c("scGate","SingleR","SCINA")
 
 global.perf$method <- factor(global.perf$method, levels = ordered.methods)
 global.perf$metric <- factor(global.perf$metric, levels = c("PREC","REC","MCC"))
@@ -369,7 +368,7 @@ plt.prec <- plt.prec + theme(axis.title.x=element_blank(),
 b <- plt.prec / plt.mcc
 b
 
-ggsave(file.path(figure.path,"benchmark_24012022_scGate_portr_withAbdelaal.pdf"), plot=b, width=6, height=4)
+ggsave(file.path(figure.path,"benchmark_24012022_scGate_portr.pdf"), plot=b, width=9, height=4)
 
 ```
 
