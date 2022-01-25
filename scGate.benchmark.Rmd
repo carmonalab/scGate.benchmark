@@ -47,6 +47,7 @@ library(org.Hs.eg.db)
 
 Load datasets (you will need ~ 14gb of RAM)
 ```{r}
+# Load Jerby et.al, Yost et.al, Zilionis et.al, and Hao et.al datasets
 rds.file = "./aux/human_sets_benchmark.rds"
 if (!file.exists(rds.file)) {
   options(timeout=2000)
@@ -54,66 +55,38 @@ if (!file.exists(rds.file)) {
 }
 testing.datasets <- readRDS(rds.file) 
 
-#ground_truth_categories <- readRDS("./aux/SingleR_goldStandard.rds")  #Load an object containing stardard cell type annotations - to allow comparing different methods
+# Load Abdelaal 2019 pbmc data (also used in JiaruiDing2020)
+rds.file.abdelaal = "./aux/pbmc_abdelaal2019_processed.rds"
+if (!file.exists(rds.file.abdelaal)) {
+  options(timeout=2000)
+  download.file("https://figshare.com/ndownloader/files/33846359?private_link=c84ef361399e2f5148d8", rds.file.abdelaal)
+}
+abdelaal.pbmc.data <- readRDS(rds.file.abdelaal)
+testing.datasets <- c(testing.datasets, abdelaal.pbmc.data)
 
-ground_truth_categories <- readRDS("./aux/goldStandards.rds")  #Load an object containing stardard cell type annotations - to allow comparing different methods
 
+ground_truth_categories <- readRDS("./aux/goldStandards.rds")  #Load an object containing standardized cell type annotations - to allow comparing different methods
 figure.path <- "./plots/"
 dir.create(figure.path, showWarnings = F)
 
-```
-
-
-Load default models from DB
-```{r}
-models.DB <- scGate::get_scGateDB(version="v0.4")  ### NB: force update will make results non-reproducible. We must specify a tag for download, or alternatively include the set of models in the repo
-
-models <- models.DB$human$generic  ## Pre-compiled list of models for human cell types
-print(models%>%names)
-
-#Edit CD4 and CD8 models to includes MAIT as contaminants?
-#models$CD4T <- scGate::gating_model(model = models$CD4T, level=4, negative=T, name="MAIT",
-#                              signature=c("KLRB1","SLC4A10","NCR3","CD4-","CD8A-"))
-#plot_tree(models$CD4T)
-
-#models$CD8T <- scGate::gating_model(model = models$CD8T, level=4, negative=T, name="MAIT",
-#                              signature=c("KLRB1","SLC4A10","NCR3","CD4-","CD8A-"))
-#plot_tree(models$CD8T)
-
+results <- data.frame()
 ```
 
 
 ## Run models and compute performance
 
-```{r}
-## SingleR
-library(celldex)
-hpca.se <- HumanPrimaryCellAtlasData() 
-param <- BiocParallel::MulticoreParam(workers = 4)
-
-dset.to.run <- names(testing.datasets)
-res.SingleR <- list()
-SingleR.output <- list()
-for(dset in dset.to.run){
-    obj <- testing.datasets[[dset]]
-    SingleR.output[[dset]] <- SingleR(test = GetAssayData(obj), ref = hpca.se,labels = hpca.se$label.fine, BPPARAM=param)
-    res.SingleR[[dset]][["SingleR.fine"]] <- SingleR.output[[dset]]$pruned.labels
-}
-```
-
-
 Run scGate
 ```{r,collapse =T, results= F, echo = F}
-# List available testing datasets:
-#names(testing.datasets)
+#Load default models from DB
+models.DB <- scGate::get_scGateDB(version="v0.4")  ### Specifying a version ensure reproducibility of signatures
+models <- models.DB$human$generic  ## Pre-compiled list of models for human cell types
+print(models%>%names)
 
-results <- data.frame()
-models <- models[names(models)!="Tcell.alphabeta"] #skip this model since there is no equivalent class in hpca for SingleR
-#results.bkp <- results
-```
+#skip these models since there is no equivalent class in HPCA for SingleR
+models <- models[!names(models) %in% c("Tcell.alphabeta","Plasma_cell","PanBcell")] 
 
+results.scGate <- data.frame()
 
-```{r,collapse =T, results= F, echo = F}
 for(dset in dset.to.run){
   message(sprintf('-Running %s',dset))
   obj <- testing.datasets[[dset]]
@@ -121,23 +94,52 @@ for(dset in dset.to.run){
   
 
   for(model.name in names(models)){
-    if(sum(results$method == "scGate" & results$dataset%in% dset & results$model%in% model.name) == 3) next
+    if(sum(results$method == "scGate" & dset %in% results$dataset & model.name %in% results$model) == 3) next
+    
     message(sprintf('---Running %s',model.name))
     model <- models[[model.name]]
     obj <- scGate(data = obj, model = model, ncores = 4, keep.ranks = TRUE, output.col.name = paste0('is.pure.',model.name), assay = assay)
     
-    res <- scGate::performance.metrics(actual = obj@meta.data[,model.name], pred = obj@meta.data[,paste0("is.pure.",model.name)] == "Pure")
-    res <- data.frame(value = res, metric = names(res),model = model.name,dataset = dset,method = "scGate")
-    results <- rbind(results,res)
-    
-    #merge SingleR results
-    pred.singleR <- (res.SingleR[[dset]])$SingleR.fine%>%grepl(ground_truth_categories$hpca_categories[[model.name]],.)+0
-    singleR <- scGate::performance.metrics(actual = obj@meta.data[,model.name], pred = pred.singleR == 1)
-    singleR <- data.frame(value = singleR, metric = names(singleR),model = model.name,dataset = dset,method = 'SingleR')
-    results <- rbind(results,singleR)
+    if (model.name %in% colnames(obj@meta.data)) {
+      res <- scGate::performance.metrics(actual = obj@meta.data[,model.name], pred = obj@meta.data[,paste0("is.pure.",model.name)] == "Pure")
+      res <- data.frame(value = res, metric = names(res),model = model.name,dataset = dset,method = "scGate")
+      results.scGate <- rbind(results.scGate,res)
+    }
   }
-
 }
+```
+
+
+Run SingleR
+```{r}
+library(celldex)
+hpca.se <- HumanPrimaryCellAtlasData() 
+param <- BiocParallel::MulticoreParam(workers = 4)
+
+dset.to.run <- names(testing.datasets)
+res.SingleR <- list()
+SingleR.output <- list()
+results.singleR <- data.frame()
+
+for(dset in dset.to.run){
+    obj <- testing.datasets[[dset]]
+    SingleR.output[[dset]] <- SingleR(test = GetAssayData(obj), ref = hpca.se,labels = hpca.se$label.fine, BPPARAM=param)
+    res.SingleR[[dset]][["SingleR.fine"]] <- SingleR.output[[dset]]$pruned.labels
+    
+    for(model.name in names(models)){
+        model <- models[[model.name]]
+        
+        pred.singleR <- (res.SingleR[[dset]])$SingleR.fine%>%grepl(ground_truth_categories$hpca_categories[[model.name]],.)+0
+    
+      if (model.name %in% colnames(obj@meta.data)) {
+        res <- scGate::performance.metrics(actual = obj@meta.data[,model.name], pred = pred.singleR == 1)
+        res <- data.frame(value = res, metric = names(res),model = model.name,dataset = dset,method = 'SingleR')
+        results.singleR <- rbind(results.singleR,res)
+      }
+    }  
+}
+
+results <- rbind(results.scGate,  results.singleR)
 ```
 
 # Build SCINA model signatures 
@@ -239,6 +241,25 @@ for(dset in dset.to.run){
   }  
 }
 ```
+Save results before summarization
+```{r}
+# save raw results per dataset (without summarizing Abdelaal's results)
+saveRDS(results,"aux/results.raw.rds")
+```
+
+Summarize Abdelaal results averaging pbmc1 and pbmc2 datasets
+```{r}
+results.no.abdelaal <- results%>%subset(!dataset %in% c("pbmc1.abdelaal","pbmc2.abdelaal"))
+
+# average performance of pbmc1 and pbmc2 abdelaal datasets
+results.abdelaal <- results%>%subset(dataset %in% c("pbmc1.abdelaal","pbmc2.abdelaal"))
+results.abdelaal.mean <- results.abdelaal%>%group_by(method,metric,model)%>%summarise(value = mean(value,drop.na =T))
+results.abdelaal.mean$dataset <- "Abdelaal"
+
+# merge abdelaal results to the other datasets
+results <- rbind(results.no.abdelaal, results.abdelaal.mean)
+```
+
 
 ```{r}
 saveRDS(results,file = file.path(figure.path,"benchmark_19012022_scGate.rds"))  
@@ -246,19 +267,21 @@ saveRDS(results,file = file.path(figure.path,"benchmark_19012022_scGate.rds"))
 
 
 ```{r}
-results.to.plot <- results%>%subset(method!="Garnett.clust.ext" & metric!= "REC")
+results.to.plot <- results%>%subset(method!="Garnett.clust.ext" & metric!= "REC" & model!="PanBcell")
+#results.to.plot <- results%>%subset(method!="Garnett.clust.ext" & metric!= "REC" & model!="PanBcell" & dataset!="Abdelaal")
+
+results.to.plot$dataset <- factor(results.to.plot$dataset,levels = c("Hao","Jerby","Yost","Zilionis","Abdelaal"))
 gb = results.to.plot%>%group_by(method,metric)
 global.perf <- summarise(gb,value = mean(value,na.rm =T))%>%arrange(desc(value))
 
-#ordered.methods <- (summarise(gb,value = mean(value,na.rm =T))%>%subset(metric=="MCC")%>%arrange(desc(value)))$method
-ordered.methods <- c("scGate","SingleR","SCINA","Garnett")
-#ordered.methods <- c("scGate","SingleR","SCINA")
+ordered.methods <- (summarise(gb,value = mean(value,na.rm =T))%>%subset(metric=="MCC")%>%arrange(desc(value)))$method
+#ordered.methods <- c("scGate","SingleR","Garnett","SCINA")
 
 global.perf$method <- factor(global.perf$method, levels = ordered.methods)
 global.perf$metric <- factor(global.perf$metric, levels = c("PREC","REC","MCC"))
   
-
-colors <- c("#56B4E9","#56E9BA","#E69F00","#E06D55")
+#colors <- c("#56B4E9","#56E9BA","#E69F00","#E06D55")
+colors <- c("#56B4E9","#E8E047","#E06D55","#E69F00")
 global.plt <- ggplot() +
   geom_bar(data=global.perf, aes(x=metric, y=value, fill=method), stat="identity", position="dodge", width = 0.75, alpha=0.3) +
 #  geom_jitter(data=global.perf, aes(x=metric, y=value, color = method)) + 
@@ -266,9 +289,7 @@ global.plt <- ggplot() +
   ylab("Global Performance")   + theme_bw() +
   theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
 
-
 global.plt
-
 ```
 
 
@@ -311,10 +332,9 @@ colnames(smm.prec) <- c("method","model","value")
 plt.prec <- ggplot() +
   geom_bar(data=smm.prec, aes(x=model, y=value, fill=method), stat="identity", position="dodge", width = 0.75, alpha=0.3) +
   geom_jitter(data=res.prec, aes(x=model, y=value, color = method, shape = dataset), 
-              position=position_jitterdodge(jitter.width = 0.1), size = 2) +
+              position=position_jitterdodge(jitter.width = 0.1), size = 1) +
   scale_color_manual(values=colors) + scale_fill_manual(values=colors) +
   ylab("Precision")   + theme_bw() + theme(legend.position = "none") +
-#  scale_shape_manual(values=1:length(unique(res.prec$dataset))) +
   theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
   
 
@@ -328,7 +348,7 @@ colnames(smm.mcc) <- c("method","model","value")
 plt.mcc <- ggplot() +
   geom_bar(data=smm.mcc, aes(x=model, y=value, fill=method), stat="identity", position="dodge", width = 0.75, alpha=0.3) +
   geom_jitter(data=res.mcc, aes(x=model, y=value, color = method, shape = dataset), 
-              position=position_jitterdodge(jitter.width = 0.1), size = 2) +
+              position=position_jitterdodge(jitter.width = 0.1), size = 1) +
   scale_color_manual(values=colors) + scale_fill_manual(values=colors) +
   ylab("MCC")   + theme_bw() +
 #  scale_shape_manual(values=1:length(unique(res.prec$dataset))) +
@@ -339,8 +359,6 @@ b <- plt.prec / plt.mcc
 
 a
 
-#ggsave(file.path(figure.path,"benchmark_20012022_scGate_lands.pdf"), plot=a, width=9, height=4)
-
 #remove x axis labels
 plt.prec <- plt.prec + theme(axis.title.x=element_blank(),
         axis.text.x=element_blank(),
@@ -349,10 +367,35 @@ plt.prec <- plt.prec + theme(axis.title.x=element_blank(),
 b <- plt.prec / plt.mcc
 b
 
-ggsave(file.path(figure.path,"benchmark_20012022_scGate_portr.pdf"), plot=b, width=7, height=4)
-ggsave(file.path(figure.path,"benchmark_20012022_scGate_portr.wide.pdf"), plot=b, width=9, height=4)
-
+ggsave(file.path(figure.path,"benchmark_24012022_scGate_portr.pdf"), plot=b, width=10, height=4)
 ```
 
 
+```{r}
+saveRDS(results,file = file.path(figure.path,"results_benchmark_24012022_scGate.rds"))  
+```
+
+
+## Statistical comparison
+```{r}
+
+Methods <- setdiff(res.mcc$method%>%unique(),"scGate")
+
+mcc.pvs <- list()
+for(met in Methods){
+    mcc.pvs[[met]] <- wilcox.test(res.mcc[res.mcc$method == "scGate","value"],res.mcc[res.mcc$method == met,"value"],paired = T)$p.value    
+}
+
+prec.pvs <- list()
+for(met in Methods){
+    prec.pvs[[met]] <- wilcox.test(res.prec[res.prec$method == "scGate","value"],res.prec[res.prec$method == met,"value"],paired = T)$p.value    
+}
+
+mcc.pvs%>%unlist()%>%p.adjust(.,method = "BH")
+prec.pvs%>%unlist()%>%p.adjust(.,method = "BH")
+
+
+mcc.pvs
+prec.pvs
+```
 
