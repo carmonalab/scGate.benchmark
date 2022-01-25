@@ -240,6 +240,10 @@ for(dset in dset.to.run){
 }
 ```
 
+```{r}
+saveRDS(results,file = file.path(figure.path,"benchmark_19012022_scGate.rds"))  
+```
+
 
 ```{r}
 results.to.plot <- results%>%subset(method!="Garnett.clust.ext" & metric!= "REC")
@@ -280,8 +284,9 @@ data_summary <- function(x) {
 }
 
   
-res <- results.to.plot%>%subset(metric %in% c("PREC","MCC") & model!= "Plasma_cell")
-  
+#res <- results.to.plot%>%subset(metric %in% c("PREC","MCC") & model!= "Plasma_cell")
+res <- results.to.plot%>%subset(metric %in% c("PREC","MCC") & ! (model %in% c("Plasma_cell","PanBcell")))
+
   
 res.prec <- res%>%subset(metric == "PREC")
 res.prec$method <- factor(res.prec$method, levels = ordered.methods)
@@ -294,7 +299,11 @@ res.mcc$method <- factor(res.mcc$method, levels = ordered.methods)
 And visualize performance metrics in one plot
 ```{r}
 res.prec <- res.prec[!is.na(res.prec$value),]
-res.prec$model <- factor(res.prec$model, levels=c("Bcell","PanBcell","MoMacDC","Myeloid","NK","Tcell","CD4T","CD8T"))   #reorder in more intuitive way
+
+#levs <- c("Bcell","PanBcell","MoMacDC","Myeloid","NK","Tcell","CD4T","CD8T")
+levs <- c("Bcell","MoMacDC","Myeloid","NK","Tcell","CD4T","CD8T")
+
+res.prec$model <- factor(res.prec$model, levels=levs)   #reorder in more intuitive way
 
 smm.prec <- aggregate(res.prec$value, list(res.prec$method, res.prec$model), FUN=mean)
 colnames(smm.prec) <- c("method","model","value")
@@ -310,7 +319,7 @@ plt.prec <- ggplot() +
   
 
 res.mcc <- res.mcc[!is.na(res.mcc$value),]
-res.mcc$model <- factor(res.mcc$model, levels=c("Bcell","PanBcell","MoMacDC","Myeloid","NK","Tcell","CD4T","CD8T"))   #reorder in more intuitive way
+res.mcc$model <- factor(res.mcc$model, levels=levs)   #reorder in more intuitive way
 
 smm.mcc <- aggregate(res.mcc$value, list(res.mcc$method, res.mcc$model), FUN=mean)
 colnames(smm.mcc) <- c("method","model","value")
@@ -340,12 +349,10 @@ plt.prec <- plt.prec + theme(axis.title.x=element_blank(),
 b <- plt.prec / plt.mcc
 b
 
-ggsave(file.path(figure.path,"benchmark_20012022_scGate_portr.pdf"), plot=b, width=9, height=4)
+ggsave(file.path(figure.path,"benchmark_20012022_scGate_portr.pdf"), plot=b, width=7, height=4)
+ggsave(file.path(figure.path,"benchmark_20012022_scGate_portr.wide.pdf"), plot=b, width=9, height=4)
 
 ```
 
-```{r}
-saveRDS(results,file = file.path(figure.path,"benchmark_19012022_scGate.rds"))  
-```
 
 
