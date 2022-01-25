@@ -292,7 +292,7 @@ global.plt <- ggplot() +
   ylab("Global Performance")   + theme_bw() +
   theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
 
-#global.plt
+global.plt
 ```
 
 
@@ -376,4 +376,26 @@ ggsave(file.path(figure.path,"benchmark_24012022_scGate_portr.pdf"), plot=b, wid
 saveRDS(results,file = file.path(figure.path,"results_benchmark_24012022_scGate.rds"))  
 ```
 
+## Statistical comparison
+```{r}
+
+Methods <- setdiff(res.mcc$method%>%unique(),"scGate")
+
+mcc.pvs <- list()
+for(met in Methods){
+    mcc.pvs[[met]] <- wilcox.test(res.mcc[res.mcc$method == "scGate","value"],res.mcc[res.mcc$method == met,"value"],paired = T)$p.value    
+}
+
+prec.pvs <- list()
+for(met in Methods){
+    prec.pvs[[met]] <- wilcox.test(res.prec[res.prec$method == "scGate","value"],res.prec[res.prec$method == met,"value"],paired = T)$p.value    
+}
+
+mcc.pvs%>%unlist()%>%p.adjust(.,method = "BH")
+prec.pvs%>%unlist()%>%p.adjust(.,method = "BH")
+
+
+mcc.pvs
+prec.pvs
+```
 
