@@ -378,24 +378,39 @@ saveRDS(results,file = file.path(figure.path,"results_benchmark_24012022_scGate.
 
 ## Statistical comparison
 ```{r}
+Methods <- res.mcc$method%>%unique()
 
-Methods <- setdiff(res.mcc$method%>%unique(),"scGate")
-
+mcc.mean <- list()
 mcc.pvs <- list()
 for(met in Methods){
-    mcc.pvs[[met]] <- wilcox.test(res.mcc[res.mcc$method == "scGate","value"],res.mcc[res.mcc$method == met,"value"],paired = T)$p.value    
+    mcc.mean[[met]] <- mean(res.mcc[res.mcc$method == met,"value"],drop.na=T)
+    if(met!="scGate"){
+      mcc.pvs[[met]] <- wilcox.test(res.mcc[res.mcc$method == "scGate","value"],res.mcc[res.mcc$method == met,"value"],paired = T)$p.value    
+    }
 }
 
+prec.mean <- list()
 prec.pvs <- list()
 for(met in Methods){
-    prec.pvs[[met]] <- wilcox.test(res.prec[res.prec$method == "scGate","value"],res.prec[res.prec$method == met,"value"],paired = T)$p.value    
+    prec.mean[[met]] <- mean(res.prec[res.prec$method == met,"value"],drop.na=T)
+    if(met!="scGate"){
+      prec.pvs[[met]] <- wilcox.test(res.prec[res.prec$method == "scGate","value"],res.prec[res.prec$method == met,"value"],paired = T)$p.value    
+    }
 }
+```
 
+
+```{r}
+print("mean MCC")
+mcc.mean%>%unlist()
+print("mean PREC")
+prec.mean%>%unlist()
+
+print("Adjusted p-values (MCC)")
 mcc.pvs%>%unlist()%>%p.adjust(.,method = "BH")
+
+print("Adjusted p-values (PREC)")
 prec.pvs%>%unlist()%>%p.adjust(.,method = "BH")
 
-
-mcc.pvs
-prec.pvs
 ```
 
