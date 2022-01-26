@@ -260,12 +260,6 @@ results.abdelaal.mean$dataset <- "Abdelaal"
 results <- rbind(results.no.abdelaal, results.abdelaal.mean)
 ```
 
-
-```{r}
-saveRDS(results,file = file.path(figure.path,"benchmark_19012022_scGate.rds"))  
-```
-
-
 ```{r}
 results.to.plot <- results%>%subset(method!="Garnett.clust.ext" & metric!= "REC" & model!="PanBcell")
 #results.to.plot <- results%>%subset(method!="Garnett.clust.ext" & metric!= "REC" & model!="PanBcell" & dataset!="Abdelaal")
