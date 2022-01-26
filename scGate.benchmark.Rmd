@@ -271,8 +271,8 @@ ordered.methods <- (summarise(gb,value = mean(value,na.rm =T))%>%subset(metric==
 global.perf$method <- factor(global.perf$method, levels = ordered.methods)
 global.perf$metric <- factor(global.perf$metric, levels = c("PREC","REC","MCC"))
   
-#colors <- c("#56B4E9","#56E9BA","#E69F00","#E06D55")
-colors <- c("#56B4E9","#E8E047","#E06D55","#E69F00")
+colors <- c("#56B4E9","#E69F00","#56E9BA","#E06D55")
+#colors <- c("#56B4E9","#E8E047","#E06D55","#E69F00")
 global.plt <- ggplot() +
   geom_bar(data=global.perf, aes(x=metric, y=value, fill=method), stat="identity", position="dodge", width = 0.75, alpha=0.3) +
 #  geom_jitter(data=global.perf, aes(x=metric, y=value, color = method)) + 
@@ -312,7 +312,6 @@ And visualize performance metrics in one plot
 ```{r}
 res.prec <- res.prec[!is.na(res.prec$value),]
 
-#levs <- c("Bcell","PanBcell","MoMacDC","Myeloid","NK","Tcell","CD4T","CD8T")
 levs <- c("Bcell","MoMacDC","Myeloid","NK","Tcell","CD4T","CD8T")
 
 res.prec$model <- factor(res.prec$model, levels=levs)   #reorder in more intuitive way
@@ -323,7 +322,7 @@ colnames(smm.prec) <- c("method","model","value")
 plt.prec <- ggplot() +
   geom_bar(data=smm.prec, aes(x=model, y=value, fill=method), stat="identity", position="dodge", width = 0.75, alpha=0.3) +
   geom_jitter(data=res.prec, aes(x=model, y=value, color = method, shape = dataset), 
-              position=position_jitterdodge(jitter.width = 0.1), size = 1) +
+              position=position_jitterdodge(jitter.width = 0.1), size = 1.5) +
   scale_color_manual(values=colors) + scale_fill_manual(values=colors) +
   ylab("Precision")   + theme_bw() + theme(legend.position = "none") +
   theme(axis.text.x = element_text(angle = 60, vjust = 0.4, hjust=0.5)) 
@@ -339,7 +338,7 @@ colnames(smm.mcc) <- c("method","model","value")
 plt.mcc <- ggplot() +
   geom_bar(data=smm.mcc, aes(x=model, y=value, fill=method), stat="identity", position="dodge", width = 0.75, alpha=0.3) +
   geom_jitter(data=res.mcc, aes(x=model, y=value, color = method, shape = dataset), 
-              position=position_jitterdodge(jitter.width = 0.1), size = 1) +
+              position=position_jitterdodge(jitter.width = 0.1), size = 1.5) +
   scale_color_manual(values=colors) + scale_fill_manual(values=colors) +
   ylab("MCC")   + theme_bw() +
 #  scale_shape_manual(values=1:length(unique(res.prec$dataset))) +
@@ -358,7 +357,7 @@ plt.prec <- plt.prec + theme(axis.title.x=element_blank(),
 b <- plt.prec / plt.mcc
 b
 
-ggsave(file.path(figure.path,"benchmark_24012022_scGate_portr.pdf"), plot=b, width=10, height=4)
+ggsave(file.path(figure.path,"benchmark_24012022_scGate_portr.pdf"), plot=b, width=6.5, height=4)
 ```
 
 
