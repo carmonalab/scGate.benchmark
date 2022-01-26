@@ -1,16 +1,23 @@
 # scGate.benchmark
-This repository allows reproducing the benchmark test in scGate's paper.
+This repository allows reproducing the benchmark test in the scGate manuscript.
 
-# Predictive performance of scGate vs SingleR
-[scGate.benchmark.Rmd](https://github.com/carmonalab/scGate.benchmark/blob/master/scGate.benchmark.Rmd) reproduces Figure 1 E
+# Predictive performance of scGate vs other classifiers
+[scGate.benchmark.Rmd](https://github.com/carmonalab/scGate.benchmark/blob/master/scGate.benchmark.Rmd) reproduces predictive performance for isolating target cell types in 5 dataset for 4 different methods (scGate, Garnett, SCINA, SingleR).
+
+The data comes from the following studies:
+* [Hao et al. *Cell* (2021)](https://pubmed.ncbi.nlm.nih.gov/34062119/) - Human peripheral blood mononuclear cells (PBMCs)
+* [Jerby-Arnon et al. *Cell* (2018)](https://pubmed.ncbi.nlm.nih.gov/30388455/) - Melanoma tumors from multiple patients
+* [Zilionis et al. *Immunity* (2019)](https://pubmed.ncbi.nlm.nih.gov/30979687/) - Non-small cell lung cancer
+* [Yost et al. *Nature Medicine* (2019)](https://pubmed.ncbi.nlm.nih.gov/31359002/) - Basal or squamous cell carcinoma
+* [Abdelaal et al. *Genome Biology* (2019)](https://pubmed.ncbi.nlm.nih.gov/31500660/) - Author annotations of PBMC data from [Ding et al. *Nat Biotechnol* (2020)](https://pubmed.ncbi.nlm.nih.gov/32341560/)
 
 # Running time performance
 
-[running_time_comparison_on_docker.Rmd](https://github.com/carmonalab/scGate.benchmark/blob/master/runing_time_comparison_on_docker.Rmd) reproduces Figure 1 F (running time scGate vs SingleR)
+[running_time_comparison_on_docker.Rmd](https://github.com/carmonalab/scGate.benchmark/blob/master/runing_time_comparison_on_docker.Rmd) allows estimating the running time of scGate on datasets of variable size.
 
 For reproduciblity we run this test on a Docker container, created with this [Dockerfile](https://github.com/carmonalab/scGate.benchmark/blob/master/Dockerfile). 
 
-## Detailed instructions:
+## Detailed instructions for Docker:
 
 You can install Docker in your machine following the [install instructions](https://docs.docker.com/engine/install/)
 
