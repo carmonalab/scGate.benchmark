@@ -23,8 +23,6 @@ renv::restore()
 #remotes::install_github("mojaveazure/seurat-disk",ref="163f1aade5bac38ed1e9e9c912283a7e74781610")
 #remotes::install_github("carmonalab/scGate", ref='v1.0.0') #stable release
 #install.packages("SCINA")
-
-
 #install.packages("BiocManager")
 #BiocManager::install("devtools")
 #library(devtools)
@@ -63,7 +61,7 @@ if (!file.exists(rds.file.abdelaal)) {
 }
 abdelaal.pbmc.data <- readRDS(rds.file.abdelaal)
 testing.datasets <- c(testing.datasets, abdelaal.pbmc.data)
-
+dset.to.run <- names(testing.datasets)
 
 ground_truth_categories <- readRDS("./aux/goldStandards.rds")  #Load an object containing standardized cell type annotations - to allow comparing different methods
 figure.path <- "./plots/"
@@ -116,7 +114,6 @@ library(celldex)
 hpca.se <- HumanPrimaryCellAtlasData() 
 param <- BiocParallel::MulticoreParam(workers = 4)
 
-dset.to.run <- names(testing.datasets)
 res.SingleR <- list()
 SingleR.output <- list()
 results.singleR <- data.frame()
@@ -407,4 +404,6 @@ print("Adjusted p-values (PREC)")
 prec.pvs%>%unlist()%>%p.adjust(.,method = "BH")
 
 ```
-
+```{r}
+sessionInfo()
+```
